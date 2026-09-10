@@ -3,14 +3,14 @@
 @section('title', 'QR Code - ' . $livre->titre)
 
 @section('content')
-<div class="container-fluid py-4" style="background-color: #FAF3E0; min-height: 100vh;">
+<div class="container-fluid py-4" style="background-color: #F4F7FC; min-height: 100vh;">
     <div class="row justify-content-center">
         <div class="col-md-6">
             {{-- Carte du QR Code --}}
             <div class="card shadow-lg border-0 rounded-3 overflow-hidden animate__animated animate__fadeInUp">
-                <div class="card-header text-white text-center py-3" style="background-color: #5D4037; border-bottom: 4px solid #D4AF37;">
+                <div class="card-header text-white text-center py-3" style="background-color: #123A7A; border-bottom: 4px solid #2563EB;">
                     <h5 class="mb-0 fw-bold">
-                        <i class="fas fa-qrcode me-2" style="color: #D4AF37;"></i>Génération d'Étiquette
+                        <i class="fas fa-qrcode me-2" style="color: #2563EB;"></i>Génération d'Étiquette
                     </h5>
                 </div>
                 
@@ -21,7 +21,7 @@
                     </div>
 
                     {{-- Le QR Code --}}
-                    <div class="qr-container p-4 d-inline-block bg-white border border-2 rounded mb-4" style="border-color: #D4AF37 !important;">
+                    <div class="qr-container p-4 d-inline-block bg-white border border-2 rounded mb-4" style="border-color: #2563EB !important;">
                         <img src="{{ $qrCode }}" alt="QR Code du livre" style="width: 250px; height: 250px;">
                     </div>
 
@@ -66,9 +66,9 @@
 
 <style>
     :root {
-        --brown: #5D4037;
-        --gold: #D4AF37;
-        --paper: #FAF3E0;
+        --brown: #123A7A;
+        --gold: #2563EB;
+        --paper: #F4F7FC;
     }
 
     .text-brown { color: var(--brown); }
@@ -101,7 +101,7 @@
     }
 
     .qr-container {
-        box-shadow: 0 10px 30px rgba(212, 175, 55, 0.1);
+        box-shadow: 0 10px 30px rgba(37, 99, 235, 0.1);
         transition: transform 0.3s ease;
     }
     .qr-container:hover {

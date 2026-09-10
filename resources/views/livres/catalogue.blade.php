@@ -5,7 +5,7 @@
 
 @section('content')
 <!-- Conteneur principal avec fond Papier/Crème -->
-<div class="container-fluid py-4" style="background-color: #FAF3E0; min-height: 100vh;">
+<div class="container-fluid py-4" style="background-color: #F4F7FC; min-height: 100vh;">
     
     <!-- En-tête de page -->
     <div class="d-flex justify-content-between align-items-center mb-4">
@@ -67,7 +67,7 @@
 
     <!-- Résultats -->
     <div class="card shadow-lg border-0 rounded-3 overflow-hidden">
-        <div class="card-header text-white py-3 d-flex justify-content-between align-items-center" style="background-color: #5D4037;">
+        <div class="card-header text-white py-3 d-flex justify-content-between align-items-center" style="background-color: #123A7A;">
             <h5 class="mb-0">
                 @if(request('search') || request('categorie') || request('disponible'))
                     <i class="fas fa-filter me-2 text-gold"></i>Résultats ({{ $livres->total() }})
@@ -88,10 +88,10 @@
 @push('styles')
 <style>
     :root {
-        --bois-sombre: #5D4037;
-        --or: #D4AF37;
+        --bois-sombre: #123A7A;
+        --or: #2563EB;
         --or-dark: #B8860B;
-        --papier: #FAF3E0;
+        --papier: #F4F7FC;
     }
 
     .text-brown { color: var(--bois-sombre) !important; }
@@ -131,7 +131,7 @@
     /* Champs de formulaire */
     .custom-focus:focus {
         border-color: var(--or);
-        box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25);
+        box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
     }
 
     /* Carte Livre */
@@ -141,7 +141,7 @@
     }
     .book-card:hover {
         transform: translateY(-5px);
-        box-shadow: 0 10px 20px rgba(93, 64, 55, 0.15) !important;
+        box-shadow: 0 10px 20px rgba(18, 58, 122, 0.15) !important;
     }
 
     /* Pagination (Personnalisation Bootstrap) */
@@ -159,7 +159,7 @@
     
     /* Texture légère pour le fond des résultats */
     .bg-light-texture {
-        background-image: radial-gradient(#5D4037 0.5px, transparent 0.5px);
+        background-image: radial-gradient(#123A7A 0.5px, transparent 0.5px);
         background-size: 20px 20px;
         background-color: #fff;
         opacity: 0.95; 

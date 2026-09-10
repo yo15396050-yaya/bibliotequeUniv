@@ -2,27 +2,26 @@
 
 namespace App\Http\Requests;
 
-use Illuminate\Foundation\Http\FormRequest;
+use Illuminate\Validation\Rule;
 
-class UpdateLivreRequest extends FormRequest
+class UpdateLivreRequest extends StoreLivreRequest
 {
-    /**
-     * Determine if the user is authorized to make this request.
-     */
     public function authorize(): bool
     {
-        return false;
+        return $this->user()?->can('update', $this->route('livre')) ?? false;
     }
 
-    /**
-     * Get the validation rules that apply to the request.
-     *
-     * @return array<string, \Illuminate\Contracts\Validation\ValidationRule|array<mixed>|string>
-     */
     public function rules(): array
     {
-        return [
-            //
+        $regles = parent::rules();
+
+        $regles['isbn'] = [
+            'required', 'string', 'max:20',
+            Rule::unique('livres', 'isbn')->ignore($this->route('livre')?->id),
         ];
+
+        $regles['statut'] = ['required', Rule::in(['disponible', 'emprunté', 'réservé', 'perdu', 'en réparation'])];
+
+        return $regles;
     }
 }

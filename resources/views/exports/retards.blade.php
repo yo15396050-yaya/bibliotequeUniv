@@ -6,11 +6,11 @@
     <style>
         body { font-family: 'Helvetica', sans-serif; color: #333; margin: 20px; }
         .header { text-align: center; border-bottom: 2px solid #E74C3C; padding-bottom: 15px; margin-bottom: 30px; }
-        .header h1 { color: #5D4037; font-size: 22px; text-transform: uppercase; margin: 0; }
+        .header h1 { color: #123A7A; font-size: 22px; text-transform: uppercase; margin: 0; }
         .header p { color: #E74C3C; font-weight: bold; margin: 5px 0 0; font-size: 14px; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background-color: #5D4037; color: #fff; padding: 10px; font-size: 11px; text-transform: uppercase; border: none; }
+        th { background-color: #123A7A; color: #fff; padding: 10px; font-size: 11px; text-transform: uppercase; border: none; }
         td { border-bottom: 1px solid #eee; padding: 10px; font-size: 10px; color: #444; }
         .text-bold { font-weight: bold; }
         .text-danger { color: #E74C3C; font-weight: bold; }

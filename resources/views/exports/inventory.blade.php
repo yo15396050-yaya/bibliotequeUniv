@@ -5,18 +5,18 @@
     <title>Inventaire Bibliothèque</title>
     <style>
         body { font-family: 'Helvetica', sans-serif; color: #333; margin: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #D4AF37; padding-bottom: 15px; margin-bottom: 30px; }
-        .header h1 { color: #5D4037; margin: 0; text-transform: uppercase; font-size: 22px; }
+        .header { text-align: center; border-bottom: 2px solid #2563EB; padding-bottom: 15px; margin-bottom: 30px; }
+        .header h1 { color: #123A7A; margin: 0; text-transform: uppercase; font-size: 22px; }
         .header p { margin: 5px 0 0; color: #666; font-size: 12px; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th { background-color: #5D4037; color: #fff; text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; }
+        th { background-color: #123A7A; color: #fff; text-align: left; padding: 10px; font-size: 11px; text-transform: uppercase; }
         td { border-bottom: 1px solid #eee; padding: 10px; font-size: 10px; vertical-align: top; }
         tr:nth-child(even) { background-color: #fafafa; }
         
         .footer { position: fixed; bottom: 0; width: 100%; text-align: right; font-size: 9px; color: #999; border-top: 1px solid #eee; padding-top: 5px; }
         .badge { padding: 3px 6px; border-radius: 4px; font-size: 8px; font-weight: bold; }
-        .label-stock { color: #5D4037; font-weight: bold; }
+        .label-stock { color: #123A7A; font-weight: bold; }
     </style>
 </head>
 <body>

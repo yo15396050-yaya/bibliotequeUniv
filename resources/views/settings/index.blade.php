@@ -1,119 +1,83 @@
-@extends('layouts.app')
-
+@extends('layouts.dashboard')
 @section('title', 'Paramètres')
 
-@section('breadcrumbs')
-    <li class="breadcrumb-item active">Paramètres</li>
-@endsection
-
-@section('page-title', 'Paramètres du Système')
-
 @section('content')
-<div class="container-fluid">
-    <div class="row">
-        <div class="col-md-3">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h6 class="mb-0">Menu des Paramètres</h6>
-                </div>
-                <div class="list-group list-group-flush">
-                    <a href="{{ route('settings.index') }}" class="list-group-item list-group-item-action active">
-                        <i class="fas fa-sliders-h me-2"></i>Général
-                    </a>
-                    <a href="{{ route('settings.notifications') }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-bell me-2"></i>Notifications
-                    </a>
-                    <a href="{{ route('settings.security') }}" class="list-group-item list-group-item-action">
-                        <i class="fas fa-shield-alt me-2"></i>Sécurité
-                    </a>
-                    <a href="#" class="list-group-item list-group-item-action">
-                        <i class="fas fa-palette me-2"></i>Apparence
-                    </a>
-                </div>
-            </div>
+<x-entete-page titre="Paramètres du système" icone="fa-sliders"
+    sous-titre="Toutes les règles métier de la bibliothèque sont configurables ici.">
+    <a href="{{ route('settings.roles') }}" class="btn btn-outline-secondary"><i class="fas fa-user-shield me-1"></i> Rôles</a>
+    <a href="{{ route('settings.annees') }}" class="btn btn-outline-secondary"><i class="fas fa-calendar me-1"></i> Années académiques</a>
+    <form action="{{ route('settings.vider-cache') }}" method="POST">
+        @csrf
+        <button class="btn btn-outline-dark"><i class="fas fa-broom me-1"></i> Vider le cache</button>
+    </form>
+</x-entete-page>
+
+<x-erreurs />
+
+<div class="row g-3">
+    <div class="col-lg-3">
+        <div class="list-group shadow-sm">
+            @foreach($groupes as $g)
+                <a href="{{ route('settings.index', ['groupe' => $g]) }}"
+                   class="list-group-item list-group-item-action {{ $groupe === $g ? 'active' : '' }}">
+                    <i class="fas {{ match($g) {
+                        'emprunt' => 'fa-hand-holding',
+                        'renouvellement' => 'fa-arrows-rotate',
+                        'penalite' => 'fa-money-bill-wave',
+                        'reservation' => 'fa-bookmark',
+                        'notification' => 'fa-bell',
+                        'document' => 'fa-file-pdf',
+                        default => 'fa-building-columns',
+                    } }} me-2"></i>{{ ucfirst($g) }}
+                </a>
+            @endforeach
         </div>
-        
-        <div class="col-md-9">
-            <div class="card">
-                <div class="card-header bg-primary text-white">
-                    <h5 class="mb-0">
-                        <i class="fas fa-sliders-h me-2"></i>Paramètres Généraux
-                    </h5>
-                </div>
-                <div class="card-body">
-                    <form>
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="nom_bibliotheque" class="form-label">Nom de la Bibliothèque</label>
-                                    <input type="text" class="form-control" id="nom_bibliotheque" value="Bibliothèque Universitaire">
-                                </div>
+    </div>
+
+    <div class="col-lg-9">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="mb-0">{{ ucfirst($groupe) }}</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ route('settings.update') }}" method="POST">
+                    @csrf @method('PUT')
+                    <input type="hidden" name="groupe" value="{{ $groupe }}">
+
+                    @foreach($definitions as $cle => $meta)
+                        @php
+                            $champ = str_replace('.', '__', $cle);
+                            $valeur = $valeurs[$cle] ?? $meta['valeur'];
+                        @endphp
+                        <div class="row align-items-center py-2 border-bottom">
+                            <div class="col-md-7">
+                                <label class="form-label mb-0" for="p-{{ $champ }}">{{ $meta['libelle'] }}</label>
+                                <div class="small" style="opacity:.55;"><code>{{ $cle }}</code></div>
                             </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="duree_emprunt" class="form-label">Durée d'emprunt (jours)</label>
-                                    <input type="number" class="form-control" id="duree_emprunt" value="14" min="1">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="row">
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="max_emprunts" class="form-label">Emprunts maximum par étudiant</label>
-                                    <input type="number" class="form-control" id="max_emprunts" value="5" min="1">
-                                </div>
-                            </div>
-                            <div class="col-md-6">
-                                <div class="mb-3">
-                                    <label for="amende_jour" class="form-label">Amende par jour de retard (€)</label>
-                                    <input type="number" step="0.01" class="form-control" id="amende_jour" value="0.50" min="0">
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="email_contact" class="form-label">Email de contact</label>
-                            <input type="email" class="form-control" id="email_contact" value="contact@bibliotheque.edu">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="telephone_contact" class="form-label">Téléphone de contact</label>
-                            <input type="text" class="form-control" id="telephone_contact" value="+33 1 23 45 67 89">
-                        </div>
-                        
-                        <div class="mb-3">
-                            <label for="adresse_bibliotheque" class="form-label">Adresse de la bibliothèque</label>
-                            <textarea class="form-control" id="adresse_bibliotheque" rows="3">123 Rue de l'Université, 75000 Paris</textarea>
-                        </div>
-                        
-                        <div class="mb-3">
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="notifications_email" checked>
-                                <label class="form-check-label" for="notifications_email">
-                                    Activer les notifications par email
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="auto_renouvellement" checked>
-                                <label class="form-check-label" for="auto_renouvellement">
-                                    Autoriser le renouvellement automatique
-                                </label>
-                            </div>
-                            <div class="form-check">
-                                <input class="form-check-input" type="checkbox" id="reservations_actives">
-                                <label class="form-check-label" for="reservations_actives">
-                                    Activer le système de réservations
-                                </label>
+                            <div class="col-md-5">
+                                @if($meta['type'] === 'boolean')
+                                    <div class="form-check form-switch">
+                                        <input type="hidden" name="parametres[{{ $champ }}]" value="0">
+                                        <input class="form-check-input" type="checkbox" role="switch"
+                                               id="p-{{ $champ }}" name="parametres[{{ $champ }}]" value="1"
+                                               @checked(filter_var($valeur, FILTER_VALIDATE_BOOLEAN))>
+                                    </div>
+                                @elseif(in_array($meta['type'], ['integer', 'decimal']))
+                                    <input type="number" step="{{ $meta['type'] === 'decimal' ? '0.01' : '1' }}" min="0"
+                                           class="form-control" id="p-{{ $champ }}"
+                                           name="parametres[{{ $champ }}]" value="{{ $valeur }}">
+                                @else
+                                    <input type="text" class="form-control" id="p-{{ $champ }}"
+                                           name="parametres[{{ $champ }}]" value="{{ $valeur }}">
+                                @endif
                             </div>
                         </div>
-                        
-                        <div class="d-flex justify-content-end">
-                            <button type="reset" class="btn btn-secondary me-2">Réinitialiser</button>
-                            <button type="submit" class="btn btn-primary">Enregistrer les paramètres</button>
-                        </div>
-                    </form>
-                </div>
+                    @endforeach
+
+                    <div class="mt-4">
+                        <button class="btn btn-warning"><i class="fas fa-save me-1"></i> Enregistrer les paramètres</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>

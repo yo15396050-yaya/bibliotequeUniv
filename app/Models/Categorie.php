@@ -1,24 +1,55 @@
 <?php
 
-use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
+namespace App\Models;
 
-class CreateCategoriesTable extends Migration
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Str;
+
+/**
+ * Catégorie du catalogue. Supporte les sous-catégories via `parent_id`.
+ */
+class Categorie extends Model
 {
-    public function up()
+    use HasFactory;
+
+    protected $table = 'categories';
+
+    protected $fillable = [
+        'nom', 'slug', 'code_categorie', 'description', 'parent_id', 'couleur',
+    ];
+
+    protected static function booted(): void
     {
-        Schema::create('categories', function (Blueprint $table) {
-            $table->id();
-            $table->string('nom');
-            $table->string('code_categorie', 10)->unique();
-            $table->text('description')->nullable();
-            $table->timestamps();
+        static::saving(function (Categorie $categorie) {
+            if (empty($categorie->slug)) {
+                $categorie->slug = Str::slug($categorie->nom);
+            }
         });
     }
 
-    public function down()
+    public function parent()
     {
-        Schema::dropIfExists('categories');
+        return $this->belongsTo(Categorie::class, 'parent_id');
+    }
+
+    public function enfants()
+    {
+        return $this->hasMany(Categorie::class, 'parent_id');
+    }
+
+    public function livres()
+    {
+        return $this->hasMany(Livre::class, 'categorie_id');
+    }
+
+    public function scopeRacines($query)
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    public function getNomCompletAttribute(): string
+    {
+        return $this->parent ? "{$this->parent->nom} › {$this->nom}" : $this->nom;
     }
 }

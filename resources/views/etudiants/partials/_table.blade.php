@@ -1,80 +1,50 @@
 <div class="table-responsive">
-    <table class="table table-hover align-middle mb-0">
-        <thead class="bg-light">
-            <tr>
-                <th class="ps-4">Étudiant</th>
-                <th>Matricule</th>
-                <th>Filière & Niveau</th>
-                <th>Statut</th>
-                <th class="text-end pe-4">Actions</th>
-            </tr>
+    <table class="table table-hover align-middle">
+        <thead>
+            <tr><th>Étudiant</th><th>Matricule</th><th>Filière / Niveau</th><th>Statut</th><th class="text-center">En cours</th><th class="text-end">Actions</th></tr>
         </thead>
         <tbody>
             @forelse($etudiants as $etudiant)
                 <tr>
-                    <td class="ps-4">
-                        <div class="d-flex align-items-center">
-                            <div class="avatar-sm me-3 bg-paper d-flex align-items-center justify-content-center rounded-circle border" style="width: 40px; height: 40px;">
-                                <i class="fas fa-user-graduate text-brown"></i>
-                            </div>
-                            <div>
-                                <h6 class="mb-0 fw-bold text-brown">{{ $etudiant->name }}</h6>
-                                <small class="text-muted">{{ $etudiant->email }}</small>
+                    <td>
+                        <div class="d-flex align-items-center gap-2">
+                            <img src="{{ $etudiant->url_photo }}" class="rounded-circle" style="width:36px;height:36px;object-fit:cover;" alt="">
+                            <div class="min-w-0">
+                                <a href="{{ route('etudiants.show', $etudiant) }}" class="fw-semibold text-decoration-none d-block text-truncate" style="color:var(--text-main);">
+                                    {{ $etudiant->name }}
+                                </a>
+                                <small style="opacity:.65;">{{ $etudiant->email }}</small>
                             </div>
                         </div>
                     </td>
+                    <td>{{ $etudiant->matricule ?? '—' }}</td>
+                    <td class="small">{{ $etudiant->filiere ?? '—' }}<div style="opacity:.65;">{{ $etudiant->niveau ?? '' }}</div></td>
                     <td>
-                        <span class="badge bg-light text-brown border">{{ $etudiant->matricule }}</span>
+                        <x-badge :statut="$etudiant->statut" :texte="$etudiant->libelle_statut" />
+                        @unless($etudiant->actif)<span class="badge bg-danger">Désactivé</span>@endunless
                     </td>
-                    <td>
-                        <div class="small fw-bold text-brown">{{ $etudiant->filiere ?? 'N/A' }}</div>
-                        <div class="small text-muted">{{ $etudiant->niveau ?? 'N/A' }}</div>
+                    <td class="text-center">
+                        <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                            {{ $etudiant->emprunts_en_cours_count ?? 0 }}/{{ $etudiant->quotaEmprunts() }}
+                        </span>
                     </td>
-                    <td>
-                        @if($etudiant->actif ?? true)
-                            <span class="badge bg-success-soft text-success px-2 py-1">Actif</span>
-                        @else
-                            <span class="badge bg-danger-soft text-danger px-2 py-1">Inactif</span>
-                        @endif
-                    </td>
-                    <td class="text-end pe-4">
-                        <div class="btn-group shadow-sm rounded">
-                            <a href="{{ route('etudiants.show', $etudiant) }}" class="btn btn-sm btn-white text-brown border" title="Voir le profil">
-                                <i class="fas fa-eye"></i>
+                    <td class="text-end text-nowrap">
+                        <a href="{{ route('etudiants.show', $etudiant) }}" class="btn btn-sm btn-outline-secondary"><i class="fas fa-eye"></i></a>
+                        @can('update', $etudiant)
+                            <a href="{{ route('etudiants.edit', $etudiant) }}" class="btn btn-sm btn-outline-primary"><i class="fas fa-pen"></i></a>
+                        @endcan
+                        @can('emprunts.enregistrer')
+                            <a href="{{ route('emprunts.create', ['user_id' => $etudiant->id]) }}" class="btn btn-sm btn-outline-success" title="Nouvel emprunt">
+                                <i class="fas fa-hand-holding"></i>
                             </a>
-                            <a href="{{ route('etudiants.edit', $etudiant) }}" class="btn btn-sm btn-white text-brown border" title="Modifier">
-                                <i class="fas fa-edit"></i>
-                            </a>
-                            <button type="button" class="btn btn-sm btn-white text-danger border" 
-                                    onclick="if(confirm('Confirmer la suppression ?')) document.getElementById('delete-form-{{ $etudiant->id }}').submit();" title="Supprimer">
-                                <i class="fas fa-trash-alt"></i>
-                            </button>
-                        </div>
-                        <form id="delete-form-{{ $etudiant->id }}" action="{{ route('etudiants.destroy', $etudiant->id) }}" method="POST" style="display: none;">
-                            @csrf
-                            @method('DELETE')
-                        </form>
+                        @endcan
                     </td>
                 </tr>
             @empty
-                <tr>
-                    <td colspan="5" class="text-center py-5">
-                        <div class="text-muted mb-2">
-                            <i class="fas fa-users-slash fa-3x opacity-25"></i>
-                        </div>
-                        <p class="mb-0">Aucun étudiant trouvé.</p>
-                    </td>
-                </tr>
+                <tr><td colspan="6"><x-vide message="Aucun étudiant ne correspond à ces critères." icone="fa-user-graduate" /></td></tr>
             @endforelse
         </tbody>
     </table>
 </div>
 
-<div class="d-flex justify-content-between align-items-center mt-4 px-4">
-    <div class="small text-muted">
-        Affichage de {{ $etudiants->firstItem() ?? 0 }} à {{ $etudiants->lastItem() ?? 0 }} sur {{ $etudiants->total() }} étudiants
-    </div>
-    <div class="pagination-container">
-        {{ $etudiants->links() }}
-    </div>
-</div>
+{{ $etudiants->links() }}

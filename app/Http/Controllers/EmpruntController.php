@@ -2,207 +2,211 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\StoreEmpruntRequest;
+use App\Http\Requests\StoreRetourRequest;
 use App\Models\Emprunt;
+use App\Models\Exemplaire;
 use App\Models\Livre;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Auth; // Ajout de l'import manquant
+use App\Notifications\RetardSignale;
+use App\Services\EmpruntService;
+use App\Services\NotificationService;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Auth;
 
 class EmpruntController extends Controller
 {
+    public function __construct(
+        private readonly EmpruntService $emprunts,
+        private readonly NotificationService $notifications,
+    ) {}
+
     public function index(Request $request)
     {
-        $query = Emprunt::with(['user', 'livre']);
+        $this->authorize('viewAny', Emprunt::class);
 
-        // CORRECTION : Utilisation de filled() au lieu de has()
-        // Cela évite de filtrer si le champ est présent mais vide (ex: date_debut=)
-
-        if ($request->filled('statut')) {
-            $query->where('statut', $request->statut);
-        }
-
-        if ($request->filled('date_debut')) {
-            $query->where('date_emprunt', '>=', $request->date_debut);
-        }
-
-        if ($request->filled('date_fin')) {
-            $query->where('date_emprunt', '<=', $request->date_fin);
-        }
-
-        $emprunts = $query->orderBy('date_emprunt', 'desc')->paginate(20);
+        $emprunts = Emprunt::with(['user:id,name,prenom,matricule,email', 'livre:id,titre,auteur', 'exemplaire:id,code_barre'])
+            ->when($request->filled('statut'), fn ($q) => $request->statut === 'en retard'
+                ? $q->enRetard()
+                : $q->where('statut', $request->statut))
+            ->when($request->filled('search'), fn ($q) => $q->where(function ($sq) use ($request) {
+                $sq->whereHas('user', fn ($u) => $u->recherche($request->search))
+                    ->orWhereHas('livre', fn ($l) => $l->where('titre', 'like', "%{$request->search}%"))
+                    ->orWhereHas('exemplaire', fn ($e) => $e->where('code_barre', $request->search));
+            }))
+            ->when($request->filled('date_debut'), fn ($q) => $q->whereDate('date_emprunt', '>=', $request->date_debut))
+            ->when($request->filled('date_fin'), fn ($q) => $q->whereDate('date_emprunt', '<=', $request->date_fin))
+            ->orderByDesc('date_emprunt')
+            ->paginate(20)
+            ->withQueryString();
 
         $statistiques = [
             'total' => Emprunt::count(),
-            'en_cours' => Emprunt::where('statut', 'en cours')->count(),
-            'en_retard' => Emprunt::where('statut', 'en retard')->count(),
-            'retournes' => Emprunt::where('statut', 'retourné')->count(),
+            'en_cours' => Emprunt::where('statut', Emprunt::STATUT_EN_COURS)->count(),
+            'en_retard' => Emprunt::enRetard()->count(),
+            'retournes' => Emprunt::where('statut', Emprunt::STATUT_RETOURNE)->count(),
         ];
 
         return view('emprunts.index', compact('emprunts', 'statistiques'));
     }
 
-    // ... (create, store, show restent identiques)
-    public function create()
+    public function create(Request $request)
     {
-        // Récupérer les utilisateurs qui peuvent emprunter (étudiants actifs)
-        $utilisateurs = User::where('role', 'etudiant')
-            ->where('actif', true)
-            ->orderBy('name')
-            ->get();
+        $this->authorize('create', Emprunt::class);
 
-        // Récupérer les livres disponibles (stock > 0)
-        $livres = Livre::where('exemplaires_disponibles', '>', 0)
-            ->orderBy('titre')
-            ->get();
+        $utilisateurs = User::whereIn('role', [User::ROLE_ETUDIANT, User::ROLE_ENSEIGNANT])
+            ->actifs()->orderBy('name')
+            ->get(['id', 'name', 'prenom', 'matricule', 'role', 'filiere']);
 
-        return view('emprunts.create', compact('utilisateurs', 'livres'));
-    }
-    public function store(Request $request)
-    {
-        // 1. Validation des données
-        $validated = $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'livre_id' => 'required|exists:livres,id',
-            'date_retour_prevue' => 'required|date|after_or_equal:today',
-            'notes' => 'nullable|string|max:500',
+        $livres = Livre::disponibles()->orderBy('titre')
+            ->get(['id', 'titre', 'auteur', 'isbn', 'exemplaires_disponibles']);
+
+        // Pré-remplissage possible depuis un scan de code-barres ou une fiche livre.
+        $exemplairePreSelectionne = $request->filled('code_barre')
+            ? Exemplaire::with('livre:id,titre')->where('code_barre', $request->code_barre)->first()
+            : null;
+
+        return view('emprunts.create', [
+            'utilisateurs' => $utilisateurs,
+            'livres' => $livres,
+            'livrePreSelectionne' => $request->filled('livre_id') ? Livre::find($request->livre_id) : null,
+            'exemplairePreSelectionne' => $exemplairePreSelectionne,
         ]);
-
-        $user = User::find($validated['user_id']);
-        $livre = Livre::find($validated['livre_id']);
-
-        // 2. Vérification de la disponibilité (Optionnel mais recommandé)
-        if ($livre->exemplaires_disponibles <= 0) {
-            return redirect()->back()->with('error', 'Ce livre n\'est plus disponible.');
-        }
-
-        // 3. Enregistrement sécurisé par transaction
-        DB::beginTransaction();
-        try {
-            $emprunt = Emprunt::create([
-                'user_id' => $validated['user_id'],
-                'livre_id' => $validated['livre_id'],
-                'date_emprunt' => now(),
-                'date_retour_prevue' => $validated['date_retour_prevue'],
-                'notes' => $validated['notes'] ?? null,
-                'statut' => 'en cours',
-            ]);
-
-            // Mise à jour du stock du livre
-            $livre->decrement('exemplaires_disponibles');
-
-            // Mise à jour du compteur de l'étudiant
-            $user->increment('nombre_emprunts');
-
-            DB::commit();
-
-            return redirect()->route('emprunts.show', $emprunt)
-                ->with('success', 'L\'emprunt a été enregistré avec succès !');
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()
-                ->withInput()
-                ->with('error', 'Erreur lors de l\'enregistrement : ' . $e->getMessage());
-        }
-
     }
-    /**
-     * Affiche les détails d'un emprunt spécifique.
-     */
+
+    public function store(StoreEmpruntRequest $request)
+    {
+        $donnees = $request->validated();
+
+        $emprunt = $this->emprunts->enregistrerEmprunt(
+            User::findOrFail($donnees['user_id']),
+            Livre::findOrFail($donnees['livre_id']),
+            isset($donnees['exemplaire_id']) ? Exemplaire::find($donnees['exemplaire_id']) : null,
+            isset($donnees['date_retour_prevue']) ? Carbon::parse($donnees['date_retour_prevue']) : null,
+            $donnees['notes'] ?? null
+        );
+
+        return redirect()->route('emprunts.show', $emprunt)
+            ->with('success', 'Emprunt enregistré. Retour prévu le '
+                .$emprunt->date_retour_prevue->format('d/m/Y').'.');
+    }
+
     public function show(Emprunt $emprunt)
     {
-        // On charge les relations pour éviter les requêtes supplémentaires dans la vue
-        $emprunt->load(['user', 'livre']);
+        $this->authorize('view', $emprunt);
 
-        // C'est ici que ton design "Bois & Or" va s'afficher
+        $emprunt->load(['user', 'livre', 'exemplaire.emplacement', 'bibliothecaire:id,name',
+            'receptionniste:id,name', 'renouvellements.demandeur:id,name', 'penalites']);
+
         return view('emprunts.show', compact('emprunt'));
     }
+
+    public function destroy(Emprunt $emprunt)
+    {
+        $this->authorize('delete', $emprunt);
+
+        if ($emprunt->estEnCours()) {
+            return back()->with('error', 'Un emprunt en cours ne peut pas être supprimé : enregistrez d\'abord le retour.');
+        }
+
+        $emprunt->delete();
+
+        return redirect()->route('emprunts.index')->with('success', 'Emprunt supprimé.');
+    }
+
+    /** Enregistrement du retour d'un exemplaire. */
+    public function retour(StoreRetourRequest $request, Emprunt $emprunt)
+    {
+        $emprunt = $this->emprunts->enregistrerRetour(
+            $emprunt,
+            $request->validated('etat_retour'),
+            $request->validated('observation')
+        );
+
+        $penalite = $emprunt->penalites()->latest()->first();
+
+        return redirect()->route('emprunts.show', $emprunt)
+            ->with('success', 'Retour enregistré.'.($penalite && ! $penalite->estSoldee()
+                ? ' Pénalité appliquée : '.\App\Support\Parametres::formaterMontant($penalite->montant).'.'
+                : ''));
+    }
+
     /**
-     * Génère un reçu PDF pour un emprunt spécifique.
+     * Guichet de retour rapide : recherche l'emprunt à partir du code-barres
+     * scanné et le restitue immédiatement.
      */
+    public function guichetRetour(Request $request)
+    {
+        $this->authorize('create', Emprunt::class);
+
+        $emprunt = null;
+        $erreur = null;
+
+        if ($code = trim((string) $request->input('code_barre'))) {
+            $emprunt = Emprunt::with(['user', 'livre', 'exemplaire'])
+                ->enCours()
+                ->whereHas('exemplaire', fn ($q) => $q->where('code_barre', $code))
+                ->first();
+
+            if (! $emprunt) {
+                $erreur = "Aucun emprunt en cours pour le code-barres « {$code} ».";
+            }
+        }
+
+        return view('emprunts.guichet', compact('emprunt', 'erreur'));
+    }
+
+    /** Reçu PDF de l'emprunt. */
     public function genererFiche(Emprunt $emprunt)
     {
-        $emprunt->load(['user', 'livre']);
+        $this->authorize('view', $emprunt);
 
-        // On utilise la vue 'emprunts.fiche' pour le design du PDF
-        $pdf = Pdf::loadView('emprunts.fiche', compact('emprunt'));
+        $emprunt->load(['user', 'livre', 'exemplaire']);
 
-        // Téléchargement du fichier avec un nom explicite
-        return $pdf->download("recu-emprunt-{$emprunt->id}.pdf");
+        return Pdf::loadView('emprunts.fiche', compact('emprunt'))
+            ->download("recu-emprunt-{$emprunt->id}.pdf");
     }
 
-    /**
-     * Marque automatiquement les emprunts non rendus comme "en retard".
-     */
+    /** Marque les emprunts échus comme « en retard » et génère les pénalités. */
     public function rappelRetard()
     {
-        $empruntsEnRetard = Emprunt::where('statut', 'en cours')
-            ->where('date_retour_prevue', '<', now())
-            ->with(['user', 'livre'])
-            ->get();
+        $this->authorize('create', Emprunt::class);
 
-        foreach ($empruntsEnRetard as $emprunt) {
-            $emprunt->update(['statut' => 'en retard']);
-        }
+        $resultat = $this->emprunts->traiterRetards();
 
-        return redirect()->route('emprunts.index')
-            ->with('success', count($empruntsEnRetard) . ' emprunt(s) mis à jour en retard.');
+        return redirect()->route('emprunts.index')->with('success', sprintf(
+            '%d emprunt(s) passé(s) en retard, %d pénalité(s) générée(s).',
+            $resultat['marques'],
+            $resultat['penalites']
+        ));
     }
 
-    public function retour(Emprunt $emprunt)
+    /** Envoie un rappel individuel à l'usager en retard. */
+    public function envoyerRappel(Emprunt $emprunt)
     {
-        if ($emprunt->statut !== 'en cours' && $emprunt->statut !== 'en retard') {
-            return redirect()->back()
-                ->with('error', 'Cet emprunt a déjà été retourné.');
+        $this->authorize('retour', $emprunt);
+
+        if (! $emprunt->estEnRetard()) {
+            return back()->with('error', "Cet emprunt n'est pas en retard.");
         }
 
-        DB::beginTransaction();
-        try {
-            $amende = 0;
-            // Comparaison de dates propre
-            if (now()->greaterThan($emprunt->date_retour_prevue)) {
-                $joursRetard = now()->diffInDays($emprunt->date_retour_prevue);
-                $amende = $joursRetard * 100; // 100 FCFA par jour de retard
-                $emprunt->statut = 'en retard';
-            } else {
-                $emprunt->statut = 'retourné';
-            }
+        $this->notifications->envoyer($emprunt->user, new RetardSignale($emprunt));
 
-            $emprunt->date_retour_effective = now();
-            $emprunt->amende = $amende;
-            $emprunt->save();
-
-            $livre = $emprunt->livre;
-            $livre->increment('exemplaires_disponibles');
-
-            if ($livre->exemplaires_disponibles > 0 && $livre->statut == 'emprunté') {
-                $livre->update(['statut' => 'disponible']);
-            }
-
-            DB::commit();
-
-            $message = 'Retour enregistré avec succès.' . ($amende > 0 ? " Amende : {$amende} FCFA" : '');
-            return redirect()->route('emprunts.show', $emprunt)
-                ->with('success', $message);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return redirect()->back()->with('error', 'Erreur : ' . $e->getMessage());
-        }
+        return back()->with('success', 'Rappel envoyé à '.$emprunt->user->name.'.');
     }
 
-    public function mesEmprunts()
+    /** Espace usager : mes emprunts. */
+    public function mesEmprunts(Request $request)
     {
-        // Auth::id() nécessite l'import "use Illuminate\Support\Facades\Auth;" en haut
-        $emprunts = Emprunt::where('user_id', Auth::id())
-            ->with(['livre'])
-            ->orderBy('date_emprunt', 'desc')
-            ->paginate(10);
+        $emprunts = Emprunt::with(['livre:id,titre,auteur,image_couverture', 'exemplaire:id,code_barre', 'renouvellements'])
+            ->where('user_id', Auth::id())
+            ->when($request->filled('statut'), fn ($q) => $q->where('statut', $request->statut))
+            ->orderByDesc('date_emprunt')
+            ->paginate(10)
+            ->withQueryString();
 
         return view('emprunts.mes-emprunts', compact('emprunts'));
     }
-
-    // ... (reste du code)
 }

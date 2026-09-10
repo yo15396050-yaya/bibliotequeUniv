@@ -6,7 +6,7 @@
     <style>
         /* Thème Global */
         .detail-wrapper {
-            background-color: #FAF3E0;
+            background-color: #F4F7FC;
             min-height: 100vh;
             padding: 2rem 0;
         }
@@ -19,41 +19,41 @@
         }
 
         .main-header {
-            background-color: #5D4037 !important;
-            color: #D4AF37 !important;
-            border-bottom: 3px solid #D4AF37;
+            background-color: #123A7A !important;
+            color: #2563EB !important;
+            border-bottom: 3px solid #2563EB;
         }
 
         .section-header {
             background-color: #f8f1e0 !important;
-            color: #5D4037;
+            color: #123A7A;
             font-weight: bold;
-            border-bottom: 1px solid #e0d5ba;
+            border-bottom: 1px solid #E2E8F0;
         }
 
         /* Typographie */
         .text-wood {
-            color: #5D4037;
+            color: #123A7A;
         }
 
         .text-gold {
-            color: #D4AF37;
+            color: #2563EB;
         }
 
         /* Badges & Progress */
         .bg-gold {
-            background-color: #D4AF37;
-            color: #5D4037;
+            background-color: #2563EB;
+            color: #123A7A;
         }
 
         .progress {
-            background-color: #e0d5ba;
+            background-color: #E2E8F0;
             height: 12px !important;
             border-radius: 10px;
         }
 
         .progress-bar {
-            background-color: #5D4037;
+            background-color: #123A7A;
             border-radius: 10px;
         }
 
@@ -70,20 +70,20 @@
 
         /* Buttons */
         .btn-gold {
-            background-color: #D4AF37;
-            color: #5D4037;
+            background-color: #2563EB;
+            color: #123A7A;
             border: none;
             font-weight: 600;
         }
 
         .btn-gold:hover {
-            background-color: #5D4037;
-            color: #FAF3E0;
+            background-color: #123A7A;
+            color: #F4F7FC;
         }
 
         /* Suggestions */
         .suggestion-card {
-            border: 1px solid #e0d5ba;
+            border: 1px solid #E2E8F0;
             border-radius: 8px;
             overflow: hidden;
             transition: transform 0.3s;
@@ -92,7 +92,7 @@
 
         .suggestion-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(93, 64, 55, 0.1);
+            box-shadow: 0 5px 15px rgba(18, 58, 122, 0.1);
         }
 
         .suggestion-img {
@@ -135,7 +135,7 @@
                                                 alt="{{ $livre->titre }}" class="img-fluid rounded book-cover-detail">
                                         @else
                                             <div class="bg-light d-flex align-items-center justify-content-center rounded"
-                                                style="height: 350px; border: 2px dashed #D4AF37;">
+                                                style="height: 350px; border: 2px dashed #2563EB;">
                                                 <div class="text-muted"><i class="fas fa-image fa-3x mb-2"></i><br>Aucune
                                                     couverture</div>
                                             </div>
@@ -301,6 +301,146 @@
                                 </div>
                             </div>
                         </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Exemplaires physiques et documents numériques --}}
+        <div class="container-fluid mt-5">
+            <div class="row justify-content-center g-4">
+                <div class="col-md-11 col-lg-10">
+                    <div class="row g-4">
+
+                        {{-- Exemplaires --}}
+                        <div class="col-lg-7">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-transparent border-0 pt-3 d-flex justify-content-between align-items-center">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-barcode me-2" style="color: var(--accent-gold);"></i>
+                                        Exemplaires ({{ $livre->exemplaires->count() }})
+                                    </h5>
+                                    @can('exemplaires.gerer')
+                                        <a href="{{ route('exemplaires.create', ['livre_id' => $livre->id]) }}"
+                                           class="btn btn-sm btn-warning">
+                                            <i class="fas fa-plus me-1"></i> Ajouter
+                                        </a>
+                                    @endcan
+                                </div>
+                                <div class="table-responsive">
+                                    <table class="table table-hover align-middle mb-0">
+                                        <thead>
+                                            <tr><th>Code-barres</th><th>Emplacement</th><th>État</th><th>Statut</th><th class="text-end">Actions</th></tr>
+                                        </thead>
+                                        <tbody>
+                                            @forelse($livre->exemplaires as $exemplaire)
+                                                <tr>
+                                                    <td><code>{{ $exemplaire->code_barre }}</code></td>
+                                                    <td class="small">{{ $exemplaire->emplacement?->chemin_complet ?? '—' }}</td>
+                                                    <td class="small">{{ \App\Models\Exemplaire::ETATS[$exemplaire->etat] ?? $exemplaire->etat }}</td>
+                                                    <td><x-badge :statut="$exemplaire->statut" :texte="$exemplaire->libelle_statut" /></td>
+                                                    <td class="text-end text-nowrap">
+                                                        <a href="{{ route('exemplaires.show', $exemplaire) }}"
+                                                           class="btn btn-sm btn-outline-secondary" title="Fiche"><i class="fas fa-eye"></i></a>
+                                                        <a href="{{ route('exemplaires.etiquette', $exemplaire) }}" target="_blank"
+                                                           class="btn btn-sm btn-outline-dark" title="Étiquette"><i class="fas fa-tag"></i></a>
+                                                        @if($exemplaire->estDisponible())
+                                                            @can('emprunts.enregistrer')
+                                                                <a href="{{ route('emprunts.create', ['livre_id' => $livre->id, 'code_barre' => $exemplaire->code_barre]) }}"
+                                                                   class="btn btn-sm btn-outline-success" title="Emprunter"><i class="fas fa-hand-holding"></i></a>
+                                                            @endcan
+                                                        @endif
+                                                    </td>
+                                                </tr>
+                                            @empty
+                                                <tr>
+                                                    <td colspan="5">
+                                                        <x-vide message="Aucun exemplaire physique enregistré pour cet ouvrage." icone="fa-barcode">
+                                                            @can('exemplaires.gerer')
+                                                                <a href="{{ route('exemplaires.create', ['livre_id' => $livre->id]) }}"
+                                                                   class="btn btn-sm btn-warning">Créer les exemplaires</a>
+                                                            @endcan
+                                                        </x-vide>
+                                                    </td>
+                                                </tr>
+                                            @endforelse
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+
+                        {{-- Documents numériques --}}
+                        <div class="col-lg-5">
+                            <div class="card border-0 shadow-sm h-100">
+                                <div class="card-header bg-transparent border-0 pt-3">
+                                    <h5 class="mb-0">
+                                        <i class="fas fa-file-pdf me-2" style="color: var(--accent-gold);"></i>
+                                        Documents numériques ({{ $livre->documents->count() }})
+                                    </h5>
+                                </div>
+                                <div class="card-body p-0">
+                                    @forelse($livre->documents as $document)
+                                        <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom gap-2">
+                                            <div class="min-w-0">
+                                                <div class="fw-semibold small text-truncate">{{ $document->titre }}</div>
+                                                <div class="small" style="opacity:.65;">
+                                                    {{ strtoupper($document->format) }} · {{ $document->taille_lisible }}
+                                                    · {{ $document->nombre_telechargements }} téléchargement(s)
+                                                </div>
+                                            </div>
+                                            <div class="d-flex gap-1 flex-shrink-0">
+                                                @can('view', $document)
+                                                    <a href="{{ route('documents.consulter', $document) }}" target="_blank"
+                                                       class="btn btn-sm btn-outline-secondary" title="Consulter"><i class="fas fa-eye"></i></a>
+                                                @endcan
+                                                @can('download', $document)
+                                                    <a href="{{ route('documents.telecharger', $document) }}"
+                                                       class="btn btn-sm btn-outline-primary" title="Télécharger"><i class="fas fa-download"></i></a>
+                                                @endcan
+                                                @can('delete', $document)
+                                                    <form action="{{ route('documents.destroy', $document) }}" method="POST"
+                                                          onsubmit="return confirm('Supprimer ce document ?');">
+                                                        @csrf @method('DELETE')
+                                                        <button class="btn btn-sm btn-outline-danger" title="Supprimer"><i class="fas fa-trash"></i></button>
+                                                    </form>
+                                                @endcan
+                                            </div>
+                                        </div>
+                                    @empty
+                                        <x-vide message="Aucun document numérique attaché." icone="fa-file-pdf" />
+                                    @endforelse
+                                </div>
+
+                                @can('documents.gerer')
+                                    <div class="card-footer bg-transparent">
+                                        <form action="{{ route('documents.store', $livre) }}" method="POST"
+                                              enctype="multipart/form-data" class="d-grid gap-2">
+                                            @csrf
+                                            <input type="file" name="fichier" class="form-control form-control-sm" required
+                                                   accept=".{{ implode(',.', \App\Services\DocumentService::formatsAutorises()) }}">
+                                            <input type="text" name="titre" class="form-control form-control-sm"
+                                                   placeholder="Titre du document (facultatif)">
+                                            <select name="visibilite" class="form-select form-select-sm">
+                                                @foreach(\App\Models\DocumentNumerique::VISIBILITES as $cle => $libelle)
+                                                    <option value="{{ $cle }}" @selected($cle === 'authentifie')>{{ $libelle }}</option>
+                                                @endforeach
+                                            </select>
+                                            <div class="form-check">
+                                                <input type="hidden" name="autoriser_telechargement" value="0">
+                                                <input class="form-check-input" type="checkbox" name="autoriser_telechargement"
+                                                       value="1" id="doc-telechargeable" checked>
+                                                <label class="form-check-label small" for="doc-telechargeable">Téléchargement autorisé</label>
+                                            </div>
+                                            <button class="btn btn-sm btn-warning">
+                                                <i class="fas fa-upload me-1"></i> Ajouter un document
+                                            </button>
+                                        </form>
+                                    </div>
+                                @endcan
+                            </div>
+                        </div>
+
                     </div>
                 </div>
             </div>

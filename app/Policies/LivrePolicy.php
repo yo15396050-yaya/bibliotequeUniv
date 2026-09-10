@@ -2,33 +2,39 @@
 
 namespace App\Policies;
 
-use App\Models\User;
 use App\Models\Livre;
+use App\Models\User;
 
 class LivrePolicy
 {
-    public function viewAny(User $user)
+    public function viewAny(User $user): bool
     {
-        return true; // Tous les utilisateurs connectés peuvent voir les livres
+        return $user->peut('livres.voir');
     }
 
-    public function view(User $user, Livre $livre)
+    public function view(User $user, Livre $livre): bool
     {
-        return true;
+        return $user->peut('livres.voir');
     }
 
-    public function create(User $user)
+    public function create(User $user): bool
     {
-        return $user->estAdministrateur() || $user->estBibliothecaire();
+        return $user->peut('livres.creer');
     }
 
-    public function update(User $user, Livre $livre)
+    public function update(User $user, Livre $livre): bool
     {
-        return $user->estAdministrateur() || $user->estBibliothecaire();
+        return $user->peut('livres.modifier');
     }
 
-    public function delete(User $user, Livre $livre)
+    public function delete(User $user, Livre $livre): bool
     {
-        return $user->estAdministrateur();
+        return $user->peut('livres.supprimer');
+    }
+
+    /** Réserver un ouvrage : réservé aux emprunteurs. */
+    public function reserver(User $user, Livre $livre): bool
+    {
+        return $user->estEmprunteur() && $user->estActif();
     }
 }

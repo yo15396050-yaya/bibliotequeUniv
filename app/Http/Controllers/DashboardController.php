@@ -2,137 +2,65 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Livre;
 use App\Models\Emprunt;
-use App\Models\User;
-use App\Models\Reservation;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
+use App\Services\StatistiqueService;
+use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
+    public function __construct(private readonly StatistiqueService $statistiques) {}
+
     public function index()
     {
-        if (auth()->user()->role === 'etudiant') {
-            return $this->studentDashboard();
+        $user = Auth::user();
+
+        if ($user->estEmprunteur()) {
+            return $this->tableauDeBordUsager();
         }
 
-        $stats = [
-            'total_livres' => Livre::count(),
-            'livres_disponibles' => Livre::where('statut', 'disponible')->count(),
-            'total_etudiants' => User::where('role', 'etudiant')->count(),
-            'emprunts_en_cours' => Emprunt::where('statut', 'en cours')->count(),
-            'emprunts_en_retard' => Emprunt::where('statut', 'en retard')->count(),
-            'reservations_actives' => Reservation::where('statut', 'active')->count(),
-            'total_amendes' => Emprunt::where('statut', 'en retard')
-                ->orWhere(function($query) {
-                    $query->where('statut', 'en cours')
-                          ->where('date_retour_prevue', '<', now());
-                })
-                ->get()
-                ->sum('montant_amende'),
-        ];
+        $stats = $this->statistiques->indicateursGlobaux();
+        $flux = $this->statistiques->fluxQuotidien(7);
 
-        // Flux des 7 derniers jours
-        $chart_labels = [];
-        $chart_data = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i);
-            $chart_labels[] = $date->translatedFormat('D d');
-            $chart_data[] = Emprunt::whereDate('date_emprunt', $date->format('Y-m-d'))->count();
-        }
-
-        // Statistiques par catégorie (pour doughnut)
-        $categories_stats = Livre::select('categorie', DB::raw('count(*) as total'))
-            ->groupBy('categorie')
-            ->orderBy('total', 'desc')
-            ->get();
-
-        // Emprunts récents & Retards prioritaires
-        $emprunts_recents = Emprunt::with(['user', 'livre'])
-            ->orderBy('created_at', 'desc')
-            ->take(8)
-            ->get();
-
-        $retards_critiques = Emprunt::with(['user', 'livre'])
-            ->where('statut', 'en retard')
-            ->orWhere(function($query) {
-                $query->where('statut', 'en cours')
-                      ->where('date_retour_prevue', '<', now());
-            })
-            ->orderBy('date_retour_prevue', 'asc')
-            ->take(5)
-            ->get();
-
-        return view('dashboard.index', compact(
-            'stats', 
-            'emprunts_recents', 
-            'categories_stats', 
-            'chart_labels', 
-            'chart_data',
-            'retards_critiques'
-        ));
+        return view('dashboard.index', [
+            'stats' => $stats,
+            'chart_labels' => $flux['labels'],
+            'chart_data' => $flux['emprunts'],
+            'chart_retours' => $flux['retours'],
+            'categories_stats' => $this->statistiques->repartitionCatalogue(),
+            'emprunts_recents' => Emprunt::with(['user:id,name,prenom,matricule', 'livre:id,titre,auteur'])
+                ->latest()->take(8)->get(),
+            'retards_critiques' => $this->statistiques->retardsCritiques(5),
+        ]);
     }
 
+    /** Statistiques détaillées (graphiques annuels, tops). */
     public function statistiques()
     {
-        // Statistiques mensuelles d'emprunts
-        $emprunts_mensuels = Emprunt::select(
-                DB::raw('MONTH(date_emprunt) as mois'),
-                DB::raw('YEAR(date_emprunt) as annee'),
-                DB::raw('COUNT(*) as total')
-            )
-            ->whereYear('date_emprunt', date('Y'))
-            ->groupBy('annee', 'mois')
-            ->orderBy('annee', 'desc')
-            ->orderBy('mois', 'desc')
-            ->get();
+        $this->authorize('statistiques.voir');
 
-        // Top 10 des livres les plus empruntés
-        $top_livres = Livre::withCount('emprunts')
-            ->orderBy('emprunts_count', 'desc')
-            ->take(10)
-            ->get();
-
-        // Top 10 des étudiants les plus actifs
-        $top_etudiants = User::where('role', 'etudiant')
-            ->withCount('emprunts')
-            ->orderBy('emprunts_count', 'desc')
-            ->take(10)
-            ->get();
-
-        return view('dashboard.statistiques', compact('emprunts_mensuels', 'top_livres', 'top_etudiants'));
+        return view('dashboard.statistiques', [
+            'stats' => $this->statistiques->indicateursGlobaux(),
+            'flux_mensuel' => $this->statistiques->fluxMensuel(12),
+            'top_livres' => $this->statistiques->livresPopulaires(10),
+            'top_categories' => $this->statistiques->categoriesPopulaires(8),
+            'top_usagers' => $this->statistiques->usagersActifs(10),
+        ]);
     }
 
-    protected function studentDashboard()
+    protected function tableauDeBordUsager()
     {
-        $user = auth()->user();
-        
-        $stats = [
-            'total_emprunts' => $user->emprunts()->count(),
-            'emprunts_en_cours' => $user->emprunts()->where('statut', 'en cours')->count(),
-            'emprunts_en_retard' => $user->emprunts()->where('statut', 'en retard')->count(),
-            'total_amendes' => $user->emprunts()->sum('amende') + $user->emprunts()
-                ->where('statut', 'en cours')
-                ->where('date_retour_prevue', '<', now())
-                ->get()
-                ->sum('montant_amende'),
-            'reservations_actives' => $user->reservations()->where('statut', 'active')->count(),
-        ];
+        $user = Auth::user();
 
-        $emprunts_recents = $user->emprunts()
-            ->with('livre')
-            ->orderBy('date_emprunt', 'desc')
-            ->take(5)
-            ->get();
-
-        $reservations_recentes = $user->reservations()
-            ->with('livre')
-            ->where('statut', 'active')
-            ->orderBy('created_at', 'desc')
-            ->take(3)
-            ->get();
-
-        return view('dashboard.student', compact('stats', 'emprunts_recents', 'reservations_recentes'));
+        return view('dashboard.student', [
+            'stats' => $this->statistiques->indicateursUsager($user),
+            'emprunts_en_cours' => $user->emprunts()->with('livre:id,titre,auteur,image_couverture')
+                ->enCours()->orderBy('date_retour_prevue')->take(6)->get(),
+            'emprunts_recents' => $user->emprunts()->with('livre:id,titre,auteur,image_couverture')
+                ->latest('date_emprunt')->take(5)->get(),
+            'reservations_recentes' => $user->reservations()->with('livre:id,titre,auteur,image_couverture')
+                ->actives()->latest()->take(3)->get(),
+            'penalites' => $user->penalites()->bloquantes()->with('emprunt.livre:id,titre')->take(5)->get(),
+            'recommandations' => $this->statistiques->recommandationsPour($user, 6),
+        ]);
     }
 }

@@ -1,246 +1,187 @@
 @extends('layouts.dashboard')
-
-@section('title', 'Suivi des Emprunts')
+@section('title', 'Emprunts')
 
 @section('content')
-<style>
-    :root {
-        --primary-wood: #5D4037;
-        --gold-accent: #D4AF37;
-        --soft-beige: #FAF3E0;
-    }
+<x-entete-page titre="Emprunts" icone="fa-hand-holding"
+    :sous-titre="$emprunts->total() . ' emprunt(s) enregistré(s)'">
+    @can('emprunts.enregistrer')
+        <a href="{{ route('emprunts.create') }}" class="btn btn-warning">
+            <i class="fas fa-plus me-1"></i> Nouvel emprunt
+        </a>
+        <a href="{{ route('emprunts.guichet') }}" class="btn btn-outline-secondary">
+            <i class="fas fa-barcode me-1"></i> Guichet de retour
+        </a>
+        <form action="{{ route('emprunts.rappel-retard') }}" method="POST"
+              onsubmit="return confirm('Marquer en retard tous les emprunts échus et générer les pénalités ?');">
+            @csrf
+            <button class="btn btn-outline-danger">
+                <i class="fas fa-triangle-exclamation me-1"></i> Traiter les retards
+            </button>
+        </form>
+    @endcan
+</x-entete-page>
 
-    .stat-container {
-        background: white;
-        border-radius: 12px;
-        padding: 1.5rem;
-        border-bottom: 4px solid #ced4da;
-        transition: all 0.3s ease;
-        height: 100%;
-    }
-
-    .stat-container.active-emprunts { border-color: var(--gold-accent); }
-    .stat-container.late-emprunts { border-color: #dc3545; }
-    .stat-container.total-emprunts { border-color: var(--primary-wood); }
-
-    .stat-icon {
-        width: 45px;
-        height: 45px;
-        border-radius: 10px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        margin-bottom: 10px;
-        font-size: 1.2rem;
-    }
-
-    .filter-card {
-        background-color: var(--soft-beige);
-        border: none;
-        border-radius: 12px;
-    }
-
-    .table-emprunt thead {
-        background-color: var(--primary-wood);
-        color: white;
-    }
-
-    .badge-retard {
-        background-color: #fff1f0;
-        color: #cf1322;
-        border: 1px solid #ffa39e;
-        padding: 5px 10px;
-    }
-
-    .btn-action {
-        width: 35px;
-        height: 35px;
-        padding: 0;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        border-radius: 8px;
-        margin: 0 2px;
-    }
-</style>
-
-<div class="container-fluid py-4">
-    <div class="d-flex justify-content-between align-items-center mb-4">
-        <div>
-            <h2 class="fw-bold mb-0" style="color: var(--primary-wood);">
-                <i class="fas fa-exchange-alt me-2"></i>Circulation des Ouvrages
-            </h2>
-            <p class="text-muted">Suivi des prêts et retours en temps réel</p>
-        </div>
-        <div>
-            <a href="{{ route('emprunts.index', ['statut' => 'en retard']) }}" class="btn btn-danger shadow-sm me-2">
-                <i class="fas fa-clock me-1"></i> Alertes Retards
-            </a>
-            <a href="{{ route('emprunts.create') }}" class="btn shadow-sm" style="background-color: var(--gold-accent); color: var(--primary-wood); font-weight: bold;">
-                <i class="fas fa-plus-circle me-1"></i> Nouvel Emprunt
-            </a>
-        </div>
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="Total" :valeur="number_format($statistiques['total'], 0, ',', ' ')"
+            icone="fa-list" couleur="wood" :lien="route('emprunts.index')" />
     </div>
-
-    <div class="row g-3 mb-4">
-        <div class="col-md-3">
-            <div class="stat-container total-emprunts shadow-sm">
-                <div class="stat-icon bg-light text-dark"><i class="fas fa-layer-group"></i></div>
-                <h6 class="text-muted small text-uppercase fw-bold">Cumul Historique</h6>
-                <h3 class="fw-bold mb-0">{{ $statistiques['total'] ?? 0 }}</h3>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-container active-emprunts shadow-sm">
-                <div class="stat-icon" style="background-color: #fffbe6; color: #d4b106;"><i class="fas fa-book-reader"></i></div>
-                <h6 class="text-muted small text-uppercase fw-bold">Prêts en cours</h6>
-                <h3 class="fw-bold mb-0 text-warning">{{ $statistiques['en_cours'] ?? 0 }}</h3>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-container late-emprunts shadow-sm">
-                <div class="stat-icon" style="background-color: #fff1f0; color: #cf1322;"><i class="fas fa-exclamation-circle"></i></div>
-                <h6 class="text-muted small text-uppercase fw-bold">Hors délais</h6>
-                <h3 class="fw-bold mb-0 text-danger">{{ $statistiques['en_retard'] ?? 0 }}</h3>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="stat-container shadow-sm border-success">
-                <div class="stat-icon" style="background-color: #f6ffed; color: #389e0d;"><i class="fas fa-check-double"></i></div>
-                <h6 class="text-muted small text-uppercase fw-bold">Retours validés</h6>
-                <h3 class="fw-bold mb-0 text-success">{{ $statistiques['retournes'] ?? 0 }}</h3>
-            </div>
-        </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="En cours" :valeur="$statistiques['en_cours']" icone="fa-hand-holding"
+            couleur="info" :lien="route('emprunts.index', ['statut' => 'en cours'])" />
     </div>
-
-    <div class="card filter-card mb-4 shadow-sm">
-        <div class="card-body">
-            <form action="{{ route('emprunts.index') }}" method="GET" class="row g-3">
-                <div class="col-md-4">
-                    <label class="form-label fw-bold small text-muted">Statut du prêt</label>
-                    <select name="statut" class="form-select border-0 shadow-sm">
-                        <option value="">Tous les états</option>
-                        <option value="en cours" {{ request('statut') == 'en cours' ? 'selected' : '' }}>📖 En cours</option>
-                        <option value="retourné" {{ request('statut') == 'retourné' ? 'selected' : '' }}>✅ Retourné</option>
-                        <option value="en retard" {{ request('statut') == 'en retard' ? 'selected' : '' }}>⚠️ En retard</option>
-                        <option value="perdu" {{ request('statut') == 'perdu' ? 'selected' : '' }}>❌ Perdu</option>
-                    </select>
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold small text-muted">Période du</label>
-                    <input type="date" name="date_debut" class="form-control border-0 shadow-sm" value="{{ request('date_debut') }}">
-                </div>
-                <div class="col-md-3">
-                    <label class="form-label fw-bold small text-muted">Au</label>
-                    <input type="date" name="date_fin" class="form-control border-0 shadow-sm" value="{{ request('date_fin') }}">
-                </div>
-                <div class="col-md-2 d-flex align-items-end">
-                    <button type="submit" class="btn btn-dark w-100 shadow-sm">
-                        <i class="fas fa-filter me-2"></i>Filtrer
-                    </button>
-                </div>
-            </form>
-        </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="En retard" :valeur="$statistiques['en_retard']" icone="fa-triangle-exclamation"
+            couleur="danger" :lien="route('emprunts.index', ['statut' => 'en retard'])" />
     </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="Retournés" :valeur="number_format($statistiques['retournes'], 0, ',', ' ')"
+            icone="fa-circle-check" couleur="success" :lien="route('emprunts.index', ['statut' => 'retourné'])" />
+    </div>
+</div>
 
-    <div class="card shadow-sm border-0">
-        <div class="card-body p-0">
-            @if($emprunts->isEmpty())
-                <div class="text-center py-5">
-                    <img src="https://cdn-icons-png.flaticon.com/512/7486/7486744.png" width="100" class="opacity-25 mb-3" alt="">
-                    <h5 class="text-muted">Aucun mouvement enregistré pour cette période</h5>
-                </div>
-            @else
-                <div class="table-responsive">
-                    <table class="table table-hover table-emprunt mb-0 align-middle">
-                        <thead>
-                            <tr>
-                                <th class="ps-4">Référence</th>
-                                <th>Étudiant</th>
-                                <th>Livre emprunté</th>
-                                <th>Dates (Emprunt / Retour)</th>
-                                <th>État actuel</th>
-                                <th class="text-end pe-4">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($emprunts as $emprunt)
-                            <tr>
-                                <td class="ps-4"><span class="fw-bold text-muted">#{{ $emprunt->id }}</span></td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <div class="rounded-circle bg-light d-flex align-items-center justify-content-center me-2" style="width: 32px; height: 32px;">
-                                            <i class="fas fa-user-circle text-secondary"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold">{{ $emprunt->user->name ?? 'Anonyme' }}</div>
-                                            <div class="small text-muted">{{ $emprunt->user->matricule ?? '' }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="text-truncate" style="max-width: 200px;">
-                                        <i class="fas fa-book me-1 text-muted"></i> {{ $emprunt->livre->titre ?? 'Livre inconnu' }}
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="small">
-                                        <div><span class="text-muted">Début:</span> {{ $emprunt->date_emprunt->format('d/m/y') }}</div>
-                                        <div class="fw-bold"><span class="text-muted">Prévu:</span> {{ $emprunt->date_retour_prevue->format('d/m/y') }}</div>
-                                    </div>
-                                </td>
-                                <td>
-                                    @php
-                                        $joursRestants = now()->diffInDays($emprunt->date_retour_prevue, false);
-                                    @endphp
+<div class="card border-0 shadow-sm">
+    <div class="card-body">
+        <form method="GET" class="row g-2 mb-3">
+            <div class="col-md-4">
+                <input type="search" name="search" class="form-control" value="{{ request('search') }}"
+                       placeholder="Usager, matricule, ouvrage, code-barres...">
+            </div>
+            <div class="col-md-2">
+                <select name="statut" class="form-select">
+                    <option value="">Tous les statuts</option>
+                    @foreach(\App\Models\Emprunt::STATUTS as $cle => $libelle)
+                        <option value="{{ $cle }}" @selected(request('statut') === $cle)>{{ $libelle }}</option>
+                    @endforeach
+                </select>
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="date_debut" class="form-control" value="{{ request('date_debut') }}"
+                       aria-label="Emprunté à partir du">
+            </div>
+            <div class="col-md-2">
+                <input type="date" name="date_fin" class="form-control" value="{{ request('date_fin') }}"
+                       aria-label="Emprunté jusqu'au">
+            </div>
+            <div class="col-auto"><button class="btn btn-outline-secondary"><i class="fas fa-filter"></i></button></div>
+            <div class="col-auto"><a href="{{ route('emprunts.index') }}" class="btn btn-link">Réinitialiser</a></div>
+        </form>
 
-                                    @if($emprunt->statut == 'en retard' || ($emprunt->statut == 'en cours' && $joursRestants < 0))
-                                        <span class="badge badge-retard rounded-pill">
-                                            <i class="fas fa-exclamation-triangle me-1"></i> Retard {{ abs($joursRestants) }}j
-                                        </span>
-                                    @elseif($emprunt->statut == 'en cours')
-                                        <span class="badge bg-light text-dark border rounded-pill">
-                                            <i class="fas fa-hourglass-half me-1 text-warning"></i> En cours ({{ $joursRestants }}j)
-                                        </span>
-                                    @elseif($emprunt->statut == 'retourné')
-                                        <span class="badge bg-success-subtle text-success rounded-pill px-3">
-                                            <i class="fas fa-check me-1"></i> Rendu
-                                        </span>
-                                    @else
-                                        <span class="badge bg-secondary rounded-pill">{{ $emprunt->statut }}</span>
-                                    @endif
-                                </td>
-                                <td class="text-end pe-4">
-                                    <div class="btn-group">
-                                        <a href="{{ route('emprunts.show', $emprunt) }}" class="btn btn-outline-dark btn-action" title="Détails">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        
-                                        @if($emprunt->statut == 'en cours' || $emprunt->statut == 'en retard')
-                                            <form action="{{ route('emprunts.retour', $emprunt) }}" method="POST" class="d-inline">
+        <div class="table-responsive">
+            <table class="table table-hover align-middle">
+                <thead>
+                    <tr>
+                        <th>Usager</th><th>Ouvrage</th><th>Exemplaire</th>
+                        <th>Emprunt</th><th>Échéance</th><th>Statut</th><th class="text-end">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @forelse($emprunts as $emprunt)
+                        @php $retard = $emprunt->joursRetard(); @endphp
+                        <tr>
+                            <td>
+                                <a href="{{ route('users.show', $emprunt->user_id) }}"
+                                   class="fw-semibold text-decoration-none" style="color:var(--text-main);">
+                                    {{ $emprunt->user?->name }}
+                                </a>
+                                <div class="small" style="opacity:.65;">{{ $emprunt->user?->matricule }}</div>
+                            </td>
+                            <td class="text-truncate" style="max-width:240px;">
+                                <a href="{{ route('livres.show', $emprunt->livre_id) }}"
+                                   class="text-decoration-none" style="color:var(--text-main);">
+                                    {{ $emprunt->livre?->titre }}
+                                </a>
+                                <div class="small" style="opacity:.65;">{{ $emprunt->livre?->auteur }}</div>
+                            </td>
+                            <td>
+                                @if($emprunt->exemplaire)
+                                    <code class="small">{{ $emprunt->exemplaire->code_barre }}</code>
+                                @else
+                                    <span class="small" style="opacity:.5;">—</span>
+                                @endif
+                            </td>
+                            <td class="small">{{ $emprunt->date_emprunt?->format('d/m/Y') }}</td>
+                            <td class="small">
+                                {{ $emprunt->date_retour_prevue?->format('d/m/Y') }}
+                                @if($retard > 0 && ! $emprunt->estRetourne())
+                                    <div class="text-danger fw-semibold">{{ $retard }} j de retard</div>
+                                @endif
+                            </td>
+                            <td><x-badge :statut="$emprunt->statut" /></td>
+                            <td class="text-end text-nowrap">
+                                <a href="{{ route('emprunts.show', $emprunt) }}"
+                                   class="btn btn-sm btn-outline-secondary" title="Détail"><i class="fas fa-eye"></i></a>
+
+                                @if($emprunt->estEnCours())
+                                    @can('retour', $emprunt)
+                                        <button class="btn btn-sm btn-success" title="Enregistrer le retour"
+                                                data-bs-toggle="modal" data-bs-target="#retour-{{ $emprunt->id }}">
+                                            <i class="fas fa-rotate-left"></i>
+                                        </button>
+                                    @endcan
+                                    @if($retard > 0)
+                                        @can('retour', $emprunt)
+                                            <form action="{{ route('emprunts.rappel-mail', $emprunt) }}" method="POST" class="d-inline">
                                                 @csrf
-                                                <button type="submit" class="btn btn-success btn-action" title="Confirmer le retour" onclick="return confirm('Confirmer la remise de l\'ouvrage ?')">
-                                                    <i class="fas fa-undo"></i>
+                                                <button class="btn btn-sm btn-outline-danger" title="Envoyer un rappel">
+                                                    <i class="fas fa-paper-plane"></i>
                                                 </button>
                                             </form>
-                                        @endif
+                                        @endcan
+                                    @endif
+                                @endif
+                            </td>
+                        </tr>
 
-                                        <a href="{{ route('emprunts.fiche', $emprunt) }}" class="btn btn-info btn-action text-white" title="Imprimer fiche">
-                                            <i class="fas fa-print"></i>
-                                        </a>
+                        @if($emprunt->estEnCours())
+                            @can('retour', $emprunt)
+                                <div class="modal fade" id="retour-{{ $emprunt->id }}" tabindex="-1">
+                                    <div class="modal-dialog">
+                                        <form action="{{ route('emprunts.retour', $emprunt) }}" method="POST" class="modal-content">
+                                            @csrf
+                                            <div class="modal-header">
+                                                <h5 class="modal-title">Retour — {{ $emprunt->livre?->titre }}</h5>
+                                                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                            </div>
+                                            <div class="modal-body">
+                                                <p class="small mb-3">
+                                                    Usager : <strong>{{ $emprunt->user?->name }}</strong><br>
+                                                    Échéance : {{ $emprunt->date_retour_prevue?->format('d/m/Y') }}
+                                                    @if($retard > 0)
+                                                        <span class="text-danger fw-semibold">
+                                                            — {{ $retard }} jour(s) de retard,
+                                                            pénalité estimée {{ \App\Support\Parametres::formaterMontant($emprunt->calculerPenaliteRetard()) }}
+                                                        </span>
+                                                    @endif
+                                                </p>
+                                                <label class="form-label">État de l'exemplaire</label>
+                                                <select name="etat_retour" class="form-select mb-3">
+                                                    <option value="bon">Bon état</option>
+                                                    <option value="neuf">Neuf</option>
+                                                    <option value="moyen">État moyen</option>
+                                                    <option value="mauvais">Endommagé (pénalité)</option>
+                                                    <option value="perdu">Perdu (pénalité)</option>
+                                                </select>
+                                                <label class="form-label">Observation</label>
+                                                <input type="text" name="observation" class="form-control" placeholder="Facultatif">
+                                            </div>
+                                            <div class="modal-footer">
+                                                <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                                                <button class="btn btn-success"><i class="fas fa-rotate-left me-1"></i> Enregistrer le retour</button>
+                                            </div>
+                                        </form>
                                     </div>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-
-                <div class="d-flex justify-content-center p-4">
-                    {{ $emprunts->appends(request()->input())->links() }}
-                </div>
-            @endif
+                                </div>
+                            @endcan
+                        @endif
+                    @empty
+                        <tr><td colspan="7"><x-vide message="Aucun emprunt ne correspond à ces critères." icone="fa-hand-holding" /></td></tr>
+                    @endforelse
+                </tbody>
+            </table>
         </div>
+
+        {{ $emprunts->links() }}
     </div>
 </div>
 @endsection

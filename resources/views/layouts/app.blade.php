@@ -5,30 +5,45 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>@yield('title', 'Bibliothèque Universitaire')</title>
     
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
-    <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Roboto:wght@300;400;500&display=swap" rel="stylesheet">
     
     <style>
+        /* Identité visuelle BiblioteqUniv — bleu marine et bleu roi.
+           Les noms de variables sont conservés pour ne rien casser dans les
+           vues d'authentification ; seules les valeurs changent. */
         :root {
-            --wood-dark: #5D4037;    /* Primaire : Bois Sombre */
-            --wood-deeper: #3E2723;  /* Pour le footer et les contrastes */
-            --accent-gold: #D4AF37;  /* Accents : Or */
-            --accent-leather: #A1887F;/* Accents : Cuir */
-            --paper-cream: #FAF3E0;  /* Arrière-plan : Papier/Crème */
+            --wood-dark: #123A7A;     /* Primaire : bleu marine */
+            --wood-deeper: #0F2557;   /* Bleu nuit : pied de page, contrastes */
+            --accent-gold: #2563EB;   /* Accent : bleu roi */
+            --accent-leather: #94A3B8;/* Gris ardoise : textes secondaires */
+            --paper-cream: #F4F7FC;   /* Arrière-plan clair */
+        }
+
+        .btn-warning, .btn-primary {
+            background-color: var(--accent-gold);
+            border-color: var(--accent-gold);
+            color: #fff;
+        }
+        .btn-warning:hover, .btn-primary:hover {
+            background-color: #1D4ED8;
+            border-color: #1D4ED8;
+            color: #fff;
+        }
+        .form-control:focus {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 0 .2rem rgba(37, 99, 235, .18);
         }
 
         body {
             background-color: var(--paper-cream);
-            color: #2C1B18;
-            font-family: 'Roboto', sans-serif;
+            color: #0F172A;
+            font-family: 'Inter', system-ui, sans-serif;
             display: flex;
             flex-direction: column;
             min-height: 100vh;
         }
 
         h1, h2, h3, .navbar-brand, h5 {
-            font-family: 'Playfair Display', serif;
+            font-family: 'Inter', system-ui, sans-serif;
         }
 
         /* Navigation Style Bois */
@@ -45,7 +60,7 @@
         }
 
         .nav-link {
-            color: #EFEBE9 !important;
+            color: #EFF4FF !important;
             transition: color 0.3s;
             font-weight: 500;
         }
@@ -84,6 +99,9 @@
     </style>
     
     @stack('styles')
+    {{-- Feuilles de style et scripts empaquetés localement (Bootstrap,
+         Font Awesome, Chart.js, SweetAlert2) : aucune dépendance à un CDN. --}}
+    @vite(['resources/sass/app.scss', 'resources/js/app.js'])
 </head>
 <body>
     <nav class="navbar navbar-expand-lg navbar-dark">
@@ -193,8 +211,6 @@
         </div>
     </footer>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
-    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     
     <script>
         $(document).ready(function() {

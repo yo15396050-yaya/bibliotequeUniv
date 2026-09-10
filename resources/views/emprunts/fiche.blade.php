@@ -16,19 +16,19 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 2px solid #5D4037;
+            border-bottom: 2px solid #123A7A;
             padding-bottom: 15px;
             margin-bottom: 30px;
         }
         .institution-name {
             font-size: 18px;
             font-weight: bold;
-            color: #5D4037;
+            color: #123A7A;
             text-transform: uppercase;
         }
         .document-type {
             font-size: 14px;
-            color: #D4AF37;
+            color: #2563EB;
             font-weight: bold;
         }
 
@@ -54,7 +54,7 @@
         }
 
         .section-title {
-            background-color: #5D4037;
+            background-color: #123A7A;
             color: white;
             padding: 5px 10px;
             font-size: 12px;

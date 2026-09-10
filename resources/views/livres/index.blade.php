@@ -82,11 +82,11 @@
 @push('styles')
 <style>
     :root {
-        --brown: #5D4037;
+        --brown: #123A7A;
         --brown-light: #f4efed;
-        --gold: #D4AF37;
+        --gold: #2563EB;
         --gold-dark: #B8860B;
-        --paper: #FAF3E0;
+        --paper: #F4F7FC;
     }
 
     .text-brown { color: var(--brown); }
@@ -104,7 +104,7 @@
         transition: all 0.3s;
     }
     .btn-brown:hover {
-        background-color: #3E2723;
+        background-color: #0F2557;
         color: var(--gold);
         transform: translateY(-2px);
     }
@@ -124,7 +124,7 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        border: 1px solid rgba(212, 175, 55, 0.2);
+        border: 1px solid rgba(37, 99, 235, 0.2);
     }
 
     .custom-table thead th {
@@ -142,7 +142,7 @@
     }
 
     .custom-table tbody tr:hover {
-        background-color: rgba(212, 175, 55, 0.05) !important;
+        background-color: rgba(37, 99, 235, 0.05) !important;
     }
 
     .badge-paper {

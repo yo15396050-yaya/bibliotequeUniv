@@ -1,162 +1,259 @@
 @extends('layouts.dashboard')
+@section('title', 'Emprunt #' . $emprunt->id)
 
-@section('title', 'Suivi de l\'Emprunt #' . $emprunt->id)
+@php
+    $retard = $emprunt->joursRetard();
+    $devise = \App\Support\Parametres::devise();
+    $motifsRenouvellement = $emprunt->motifsBlocageRenouvellement();
+@endphp
 
 @section('content')
-<style>
-    /* Fond de page conforme à la charte */
-    body { background-color: #FAF3E0; }
+<x-entete-page :titre="'Emprunt #' . $emprunt->id" icone="fa-hand-holding"
+    :sous-titre="$emprunt->livre?->titre . ' — ' . $emprunt->user?->name">
+    <form action="{{ route('emprunts.fiche', $emprunt) }}" method="POST">
+        @csrf
+        <button class="btn btn-outline-dark"><i class="fas fa-file-pdf me-1"></i> Reçu PDF</button>
+    </form>
+    @can('retour', $emprunt)
+        @if($emprunt->estEnCours())
+            <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modale-retour">
+                <i class="fas fa-rotate-left me-1"></i> Enregistrer le retour
+            </button>
+        @endif
+    @endcan
+    <a href="{{ url()->previous() }}" class="btn btn-outline-secondary"><i class="fas fa-arrow-left me-1"></i> Retour</a>
+</x-entete-page>
 
-    .detail-card { 
-        border-radius: 15px; 
-        border: none; 
-        box-shadow: 0 5px 15px rgba(93, 64, 55, 0.1); 
-    }
+@if($retard > 0 && ! $emprunt->estRetourne())
+    <div class="alert alert-danger border-0 shadow-sm d-flex align-items-center gap-3">
+        <i class="fas fa-triangle-exclamation fa-lg"></i>
+        <div class="flex-grow-1">
+            <strong>{{ $retard }} jour(s) de retard</strong> — pénalité estimée :
+            {{ \App\Support\Parametres::formaterMontant($emprunt->calculerPenaliteRetard()) }}
+        </div>
+        @can('retour', $emprunt)
+            <form action="{{ route('emprunts.rappel-mail', $emprunt) }}" method="POST">
+                @csrf
+                <button class="btn btn-sm btn-outline-dark"><i class="fas fa-paper-plane me-1"></i> Envoyer un rappel</button>
+            </form>
+        @endcan
+    </div>
+@endif
 
-    .status-banner {
-        padding: 15px;
-        border-radius: 10px;
-        margin-bottom: 25px;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        /* Bordure légère couleur Or pour le rappel */
-        border: 1px solid rgba(212, 175, 55, 0.3) !important;
-    }
+<div class="row g-3">
+    {{-- Détail de l'emprunt --}}
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">Détail</h5>
+                <x-badge :statut="$emprunt->statut" />
+            </div>
+            <div class="card-body">
+                <dl class="row small mb-0">
+                    <dt class="col-5">Ouvrage</dt>
+                    <dd class="col-7">
+                        <a href="{{ route('livres.show', $emprunt->livre_id) }}" class="text-decoration-none">
+                            {{ $emprunt->livre?->titre }}
+                        </a>
+                        <div style="opacity:.65;">{{ $emprunt->livre?->auteur }}</div>
+                    </dd>
 
-    .info-label { 
-        color: #8d6e63; /* Brun clair */
-        font-weight: 600; 
-        font-size: 0.85rem; 
-        text-transform: uppercase; 
-    }
+                    <dt class="col-5">Exemplaire</dt>
+                    <dd class="col-7">
+                        @if($emprunt->exemplaire)
+                            <a href="{{ route('exemplaires.show', $emprunt->exemplaire) }}" class="text-decoration-none">
+                                <code>{{ $emprunt->exemplaire->code_barre }}</code>
+                            </a>
+                            <div style="opacity:.65;">{{ $emprunt->exemplaire->emplacement?->chemin_complet }}</div>
+                        @else
+                            <span style="opacity:.5;">Non rattaché à un exemplaire</span>
+                        @endif
+                    </dd>
 
-    .info-value { 
-        color: #5D4037; /* Ton bois sombre */
-        font-weight: 700; 
-        font-size: 1.05rem; 
-    }
+                    <dt class="col-5">Date d'emprunt</dt>
+                    <dd class="col-7">{{ $emprunt->date_emprunt?->format('d/m/Y') }}</dd>
 
-    .section-divider { 
-        border-left: 4px solid #D4AF37; /* Ligne Or */
-        padding-left: 15px; 
-        margin-bottom: 20px; 
-        color: #5D4037;
-    }
+                    <dt class="col-5">Date limite</dt>
+                    <dd class="col-7">
+                        {{ $emprunt->date_retour_prevue?->format('d/m/Y') }}
+                        @if(! $emprunt->estRetourne())
+                            <span class="badge {{ $retard > 0 ? 'bg-danger' : 'bg-success' }}">
+                                {{ $retard > 0 ? $retard.' j de retard' : 'J-'.$emprunt->joursRestants() }}
+                            </span>
+                        @endif
+                    </dd>
 
-    .text-gold { color: #D4AF37 !important; }
-    .bg-wood { background-color: #5D4037 !important; color: #FAF3E0; }
-</style>
+                    <dt class="col-5">Retour effectif</dt>
+                    <dd class="col-7">{{ $emprunt->date_retour_effective?->format('d/m/Y') ?? '—' }}</dd>
 
-<div class="container-fluid py-4">
-    <div class="row justify-content-center">
-        <div class="col-xl-10">
-            
-            @php
-                $statusColor = $emprunt->statut == 'retourné' ? 'success' : ($emprunt->statut == 'en retard' ? 'danger' : 'warning');
-                $statusIcon = $emprunt->statut == 'retourné' ? 'fa-check-double' : ($emprunt->statut == 'en retard' ? 'fa-clock' : 'fa-hourglass-half');
-            @endphp
-            
-            {{-- Bannière de statut --}}
-            <div class="status-banner bg-{{ $statusColor }} bg-opacity-10 text-{{ $statusColor }}">
-                <div>
-                    <i class="fas {{ $statusIcon }} fa-lg me-2"></i>
-                    <span class="fw-bold">Statut actuel : {{ strtoupper($emprunt->statut) }}</span>
-                </div>
-                <div class="btn-group">
-                    <a href="{{ route('emprunts.fiche', $emprunt) }}" class="btn btn-sm btn-outline-{{ $statusColor }} shadow-sm">
-                        <i class="fas fa-file-pdf me-1"></i> Générer le reçu
-                    </a>
-                    <a href="{{ route('emprunts.index') }}" class="btn btn-sm bg-wood shadow-sm ms-2">
-                        <i class="fas fa-list me-1"></i> Voir la liste
-                    </a>
-                </div>
+                    <dt class="col-5">Renouvellements</dt>
+                    <dd class="col-7">
+                        {{ $emprunt->nombre_renouvellements }} / {{ $emprunt->user?->maxRenouvellements() }}
+                    </dd>
+
+                    <dt class="col-5">Enregistré par</dt>
+                    <dd class="col-7">{{ $emprunt->bibliothecaire?->name ?? '—' }}</dd>
+
+                    @if($emprunt->receptionniste)
+                        <dt class="col-5">Réceptionné par</dt>
+                        <dd class="col-7">{{ $emprunt->receptionniste->name }}</dd>
+                    @endif
+
+                    @if($emprunt->etat_retour)
+                        <dt class="col-5">État au retour</dt>
+                        <dd class="col-7">{{ \App\Models\Exemplaire::ETATS[$emprunt->etat_retour] ?? ucfirst($emprunt->etat_retour) }}</dd>
+                    @endif
+                </dl>
+
+                @if($emprunt->notes)
+                    <hr>
+                    <p class="small mb-0" style="white-space:pre-line;">{{ $emprunt->notes }}</p>
+                @endif
             </div>
 
-            <div class="row">
-                <div class="col-md-7">
-                    <div class="card detail-card mb-4">
-                        <div class="card-body">
-                            <div class="section-divider">
-                                <h5 class="mb-0 fw-bold">Détails de l'Étudiant & de l'Ouvrage</h5>
-                            </div>
-                            
-                            <div class="row g-4">
-                                <div class="col-sm-6">
-                                    <div class="info-label">Étudiant</div>
-                                    {{-- Changé text-primary en text-gold --}}
-                                    <div class="info-value text-gold">{{ $emprunt->user->name }}</div>
-                                    <small class="text-muted"><i class="fas fa-id-card me-1"></i> {{ $emprunt->user->matricule }}</small><br>
-                                    <small class="text-muted"><i class="fas fa-envelope me-1"></i> {{ $emprunt->user->email }}</small>
-                                </div>
-                                <div class="col-sm-6">
-                                    <div class="info-label">Livre emprunté</div>
-                                    <div class="info-value">{{ $emprunt->livre->titre }}</div>
-                                    <small class="text-muted">Auteur : {{ $emprunt->livre->auteur }}</small><br>
-                                    {{-- Badge personnalisé en bois --}}
-                                    <small class="badge bg-wood mt-1">ISBN: {{ $emprunt->livre->isbn }}</small>
-                                </div>
-                            </div>
-
-                            @if($emprunt->notes)
-                            <div class="mt-4 p-3 rounded bg-light border-start border-3 border-warning">
-                                <div class="info-label mb-1">Notes de l'agent</div>
-                                <p class="mb-0 small fst-italic">"{{ $emprunt->notes }}"</p>
-                            </div>
-                            @endif
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-5">
-                    <div class="card detail-card border-top border-4 border-{{ $statusColor }}">
-                        <div class="card-body">
-                            <div class="section-divider">
-                                <h5 class="mb-0 fw-bold">Chronologie</h5>
-                            </div>
-
-                            <div class="d-flex justify-content-between mb-3 pb-2 border-bottom">
-                                <span class="text-muted small">Date de sortie :</span>
-                                <span class="fw-bold" style="color: #5D4037;">{{ $emprunt->date_emprunt?->format('d M Y') }}</span>
-                            </div>
-
-                            <div class="d-flex justify-content-between mb-3 pb-2 border-bottom">
-                                <span class="text-muted small text-danger">Retour attendu :</span>
-                                <span class="fw-bold text-danger">{{ $emprunt->date_retour_prevue?->format('d M Y') }}</span>
-                            </div>
-
-                            <div class="d-flex justify-content-between mb-3 pb-2 border-bottom">
-                                <span class="text-muted small">Retour effectif :</span>
-                                <span class="fw-bold {{ $emprunt->date_retour_effective ? 'text-success' : 'text-muted' }}">
-                                    {{ $emprunt->date_retour_effective ? $emprunt->date_retour_effective->format('d M Y') : 'En attente...' }}
-                                </span>
-                            </div>
-
-                            @if($emprunt->amende > 0)
-                            <div class="alert alert-danger d-flex align-items-center mb-0 mt-3 shadow-sm border-0">
-                                <i class="fas fa-coins fa-2x me-3"></i>
-                                <div>
-                                    <div class="small">Amende calculée</div>
-                                    <div class="h5 mb-0 fw-bold">{{ number_format($emprunt->amende, 0, ',', ' ') }} FCFA</div>
-                                </div>
-                            </div>
-                            @endif
-                        </div>
-                        
-                        @if($emprunt->statut != 'retourné')
-                        <div class="card-footer bg-white p-4">
-                            <form action="{{ route('emprunts.retour', $emprunt) }}" method="POST">
+            @can('renouveler', $emprunt)
+                @if($emprunt->estEnCours())
+                    <div class="card-footer bg-transparent">
+                        @if($motifsRenouvellement === [])
+                            <form action="{{ route('emprunts.renouveler', $emprunt) }}" method="POST">
                                 @csrf
-                                <button type="submit" class="btn btn-success w-100 py-2 fw-bold shadow">
-                                    <i class="fas fa-undo-alt me-2"></i> Confirmer la Réception
+                                <button class="btn btn-outline-primary w-100">
+                                    <i class="fas fa-arrows-rotate me-1"></i> Renouveler cet emprunt
                                 </button>
                             </form>
-                        </div>
+                        @else
+                            <div class="small" style="opacity:.75;">
+                                <strong><i class="fas fa-circle-info me-1"></i>Renouvellement impossible :</strong>
+                                <ul class="mb-0 ps-3">
+                                    @foreach($motifsRenouvellement as $motif)<li>{{ $motif }}</li>@endforeach
+                                </ul>
+                            </div>
                         @endif
                     </div>
+                @endif
+            @endcan
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        {{-- Usager --}}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-body d-flex align-items-center gap-3">
+                <img src="{{ $emprunt->user?->url_photo }}" class="rounded-circle"
+                     style="width:56px;height:56px;object-fit:cover;" alt="">
+                <div class="flex-grow-1 min-w-0">
+                    <a href="{{ route('users.show', $emprunt->user_id) }}"
+                       class="fw-semibold text-decoration-none d-block" style="color:var(--text-main);">
+                        {{ $emprunt->user?->name }}
+                    </a>
+                    <div class="small" style="opacity:.7;">
+                        {{ $emprunt->user?->matricule }} · {{ $emprunt->user?->libelle_role }}
+                        @if($emprunt->user?->filiere) · {{ $emprunt->user->filiere }} @endif
+                    </div>
                 </div>
+                <div class="text-end small">
+                    <div>{{ $emprunt->user?->emprunts()->enCours()->count() }} / {{ $emprunt->user?->quotaEmprunts() }} emprunt(s)</div>
+                    <div style="opacity:.65;">{{ $emprunt->user?->email }}</div>
+                </div>
+            </div>
+        </div>
+
+        {{-- Pénalités liées --}}
+        <div class="card border-0 shadow-sm mb-3">
+            <div class="card-header bg-transparent border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h6 class="mb-0"><i class="fas fa-money-bill-wave me-2" style="color:var(--accent-gold);"></i>Pénalités liées</h6>
+                @can('penalites.gerer')
+                    <a href="{{ route('penalites.create', ['emprunt_id' => $emprunt->id]) }}" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-plus me-1"></i> Ajouter
+                    </a>
+                @endcan
+            </div>
+            <div class="card-body p-0">
+                @forelse($emprunt->penalites as $penalite)
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                        <div class="min-w-0">
+                            <a href="{{ route('penalites.show', $penalite) }}" class="fw-semibold small text-decoration-none"
+                               style="color:var(--text-main);">{{ $penalite->libelle_type }}</a>
+                            <div class="small text-truncate" style="opacity:.65;">{{ $penalite->motif }}</div>
+                        </div>
+                        <div class="text-end flex-shrink-0">
+                            <div class="fw-bold">{{ number_format((float) $penalite->montant, 0, ',', ' ') }} {{ $devise }}</div>
+                            <x-badge :statut="$penalite->statut" :texte="$penalite->libelle_statut" />
+                        </div>
+                    </div>
+                @empty
+                    <x-vide message="Aucune pénalité sur cet emprunt." icone="fa-circle-check" />
+                @endforelse
+            </div>
+        </div>
+
+        {{-- Renouvellements --}}
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h6 class="mb-0"><i class="fas fa-arrows-rotate me-2" style="color:var(--accent-gold);"></i>Historique des renouvellements</h6>
+            </div>
+            <div class="card-body p-0">
+                @forelse($emprunt->renouvellements as $renouvellement)
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom small">
+                        <div>
+                            {{ $renouvellement->ancienne_echeance?->format('d/m/Y') }}
+                            <i class="fas fa-arrow-right mx-1"></i>
+                            {{ $renouvellement->nouvelle_echeance?->format('d/m/Y') ?? '—' }}
+                            <div style="opacity:.65;">
+                                Demandé par {{ $renouvellement->demandeur?->name }}
+                                le {{ $renouvellement->created_at->format('d/m/Y') }}
+                            </div>
+                        </div>
+                        <x-badge :statut="$renouvellement->statut" />
+                    </div>
+                @empty
+                    <x-vide message="Aucun renouvellement." icone="fa-arrows-rotate" />
+                @endforelse
             </div>
         </div>
     </div>
 </div>
+
+@can('retour', $emprunt)
+    @if($emprunt->estEnCours())
+        <div class="modal fade" id="modale-retour" tabindex="-1">
+            <div class="modal-dialog">
+                <form action="{{ route('emprunts.retour', $emprunt) }}" method="POST" class="modal-content">
+                    @csrf
+                    <div class="modal-header">
+                        <h5 class="modal-title">Enregistrer le retour</h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <p class="small">
+                            <strong>{{ $emprunt->livre?->titre }}</strong><br>
+                            {{ $emprunt->user?->name }} — échéance du {{ $emprunt->date_retour_prevue?->format('d/m/Y') }}
+                        </p>
+                        @if($retard > 0)
+                            <div class="alert alert-warning border-0 small">
+                                {{ $retard }} jour(s) de retard — pénalité de
+                                {{ \App\Support\Parametres::formaterMontant($emprunt->calculerPenaliteRetard()) }}
+                                appliquée automatiquement.
+                            </div>
+                        @endif
+                        <label class="form-label">État de l'exemplaire</label>
+                        <select name="etat_retour" class="form-select mb-3">
+                            <option value="bon">Bon état</option>
+                            <option value="neuf">Neuf</option>
+                            <option value="moyen">État moyen</option>
+                            <option value="mauvais">Endommagé (pénalité)</option>
+                            <option value="perdu">Perdu (pénalité)</option>
+                        </select>
+                        <label class="form-label">Observation</label>
+                        <input type="text" name="observation" class="form-control" placeholder="Facultatif">
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Annuler</button>
+                        <button class="btn btn-success"><i class="fas fa-rotate-left me-1"></i> Confirmer le retour</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    @endif
+@endcan
 @endsection

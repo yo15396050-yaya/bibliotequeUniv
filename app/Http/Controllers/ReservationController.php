@@ -2,236 +2,161 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Reservation;
+use App\Http\Requests\StoreReservationRequest;
 use App\Models\Livre;
+use App\Models\Reservation;
 use App\Models\User;
+use App\Services\ReservationService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 
 class ReservationController extends Controller
 {
-    public function index()
+    public function __construct(private readonly ReservationService $reservations) {}
+
+    public function index(Request $request)
     {
-        $query = Reservation::with(['user', 'livre']);
+        $this->authorize('viewAny', Reservation::class);
 
-        if (auth()->user()->estEtudiant()) {
-            $query->where('user_id', auth()->id());
-        }
+        $user = Auth::user();
 
-        $reservations = $query->orderBy('date_reservation', 'desc')
-                             ->paginate(20);
-        
+        $reservations = Reservation::with(['user:id,name,prenom,matricule', 'livre:id,titre,auteur', 'exemplaire:id,code_barre'])
+            // Un usager ne voit que ses propres réservations.
+            ->when(! $user->peut('reservations.voir'), fn ($q) => $q->where('user_id', $user->id))
+            ->when($request->filled('statut'), fn ($q) => $q->where('statut', $request->statut))
+            ->when($request->filled('search'), fn ($q) => $q->whereHas('livre',
+                fn ($l) => $l->where('titre', 'like', "%{$request->search}%")))
+            ->orderByDesc('date_reservation')
+            ->paginate(20)
+            ->withQueryString();
+
         return view('reservations.index', compact('reservations'));
     }
 
     public function create()
     {
-        $livres = Livre::where('statut', 'disponible')->get();
-        $etudiants = User::where('role', 'etudiant')->where('actif', true)->get();
-        
-        return view('reservations.create', compact('livres', 'etudiants'));
+        $this->authorize('create', Reservation::class);
+
+        $user = Auth::user();
+
+        return view('reservations.create', [
+            'livres' => Livre::orderBy('titre')->get(['id', 'titre', 'auteur', 'exemplaires_disponibles']),
+            'etudiants' => $user->peut('reservations.gerer')
+                ? User::whereIn('role', [User::ROLE_ETUDIANT, User::ROLE_ENSEIGNANT])->actifs()
+                    ->orderBy('name')->get(['id', 'name', 'prenom', 'matricule'])
+                : collect(),
+        ]);
     }
 
-    public function store(Request $request)
+    public function store(StoreReservationRequest $request)
     {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'livre_id' => 'required|exists:livres,id',
-        ]);
+        $auteurDemande = Auth::user();
+        $donnees = $request->validated();
 
-        $livre = Livre::findOrFail($request->livre_id);
-        
-        // Vérifier si le livre est déjà réservé par cet utilisateur
-        $existingReservation = Reservation::where('user_id', $request->user_id)
-                                         ->where('livre_id', $request->livre_id)
-                                         ->where('statut', 'active')
-                                         ->first();
+        // Seul le personnel peut réserver au nom d'un tiers.
+        $beneficiaire = $auteurDemande->peut('reservations.gerer') && ! empty($donnees['user_id'])
+            ? User::findOrFail($donnees['user_id'])
+            : $auteurDemande;
 
-        if ($existingReservation) {
-            return back()->with('error', 'Vous avez déjà réservé ce livre.');
-        }
+        $reservation = $this->reservations->reserver(
+            $beneficiaire,
+            Livre::findOrFail($donnees['livre_id']),
+            $donnees['notes'] ?? null
+        );
 
-        // Calculer la position dans la file d'attente
-        $position = Reservation::where('livre_id', $request->livre_id)
-                              ->where('statut', 'active')
-                              ->count() + 1;
+        return redirect()->route('reservations.show', $reservation)
+            ->with('success', "Réservation enregistrée — position {$reservation->position_file_attente} dans la file d'attente.");
+    }
 
-        // Créer la réservation et décrémenter les exemplaires disponibles
-        DB::beginTransaction();
-        try {
-            Reservation::create([
-                'user_id' => $request->user_id,
-                'livre_id' => $request->livre_id,
-                'date_reservation' => now(),
-                'date_expiration' => now()->addDays(7),
-                'statut' => 'active',
-                'position_file_attente' => $position,
-            ]);
+    /** Réservation directe depuis la fiche d'un ouvrage. */
+    public function reserver(Livre $livre)
+    {
+        $this->authorize('create', Reservation::class);
 
-            // Décrémenter les exemplaires disponibles
-            $livre->decrement('exemplaires_disponibles');
-            
-            // Mettre à jour le statut du livre si nécessaire
-            if ($livre->exemplaires_disponibles == 0) {
-                $livre->update(['statut' => 'réservé']);
-            }
+        $reservation = $this->reservations->reserver(Auth::user(), $livre);
 
-            DB::commit();
-
-            return redirect()->route('reservations.index')
-                           ->with('success', 'Réservation créée avec succès.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            return back()->with('error', 'Une erreur est survenue lors de la réservation.');
-        }
+        return back()->with('success',
+            "Ouvrage réservé — vous êtes en position {$reservation->position_file_attente} dans la file d'attente.");
     }
 
     public function show(Reservation $reservation)
     {
-        $reservation->load(['user', 'livre']);
+        $this->authorize('view', $reservation);
+
+        $reservation->load(['user', 'livre', 'exemplaire.emplacement']);
+
         return view('reservations.show', compact('reservation'));
-    }
-
-    public function reserver(Livre $livre)
-    {
-        $user = Auth::user();
-        
-        if (!$user->estEtudiant()) {
-            return back()->with('error', 'Seuls les étudiants peuvent réserver des livres.');
-        }
-
-        if (!$livre->estDisponible()) {
-            return back()->with('error', 'Ce livre n\'est pas disponible pour réservation.');
-        }
-
-        // Vérifier si l'utilisateur a déjà une réservation active pour ce livre
-        $existingReservation = Reservation::where('user_id', $user->id)
-                                         ->where('livre_id', $livre->id)
-                                         ->where('statut', 'active')
-                                         ->first();
-
-        if ($existingReservation) {
-            return back()->with('error', 'Vous avez déjà réservé ce livre.');
-        }
-
-        // Calculer la position dans la file d'attente
-        $position = Reservation::where('livre_id', $livre->id)
-                              ->where('statut', 'active')
-                              ->count() + 1;
-
-        // Créer la réservation et décrémenter les exemplaires disponibles
-        DB::beginTransaction();
-        try {
-            Reservation::create([
-                'user_id' => $user->id,
-                'livre_id' => $livre->id,
-                'date_reservation' => now(),
-                'date_expiration' => now()->addDays(7),
-                'statut' => 'active',
-                'position_file_attente' => $position,
-            ]);
-
-            // Décrémenter les exemplaires disponibles
-            $livre->decrement('exemplaires_disponibles');
-            
-            // Mettre à jour le statut du livre si nécessaire
-            if ($livre->exemplaires_disponibles == 0) {
-                $livre->update(['statut' => 'réservé']);
-            }
-
-            DB::commit();
-
-            return back()->with('success', 'Livre réservé avec succès. Position dans la file: ' . $position);
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            return back()->with('error', 'Une erreur est survenue lors de la réservation.');
-        }
-    }
-
-    public function annuler(Reservation $reservation)
-    {
-        $user = Auth::user();
-        
-        // Vérifier que l'utilisateur est le propriétaire ou un admin
-        if ($reservation->user_id !== $user->id && !$user->estAdministrateur()) {
-            return back()->with('error', 'Action non autorisée.');
-        }
-
-        DB::beginTransaction();
-        try {
-            // Marquer la réservation comme annulée
-            $reservation->update(['statut' => 'annulée']);
-
-            // Incrémenter les exemplaires disponibles
-            $livre = $reservation->livre;
-            $livre->increment('exemplaires_disponibles');
-            
-            // Mettre à jour le statut du livre si nécessaire
-            if ($livre->exemplaires_disponibles > 0 && $livre->statut == 'réservé') {
-                $livre->update(['statut' => 'disponible']);
-            }
-
-            DB::commit();
-            
-            return back()->with('success', 'Réservation annulée avec succès.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            return back()->with('error', 'Une erreur est survenue lors de l\'annulation.');
-        }
     }
 
     public function edit(Reservation $reservation)
     {
-        $livres = Livre::where('statut', 'disponible')->get();
-        $etudiants = User::where('role', 'etudiant')->where('actif', true)->get();
-        
-        return view('reservations.edit', compact('reservation', 'livres', 'etudiants'));
+        $this->authorize('update', $reservation);
+
+        $reservation->load(['user', 'livre']);
+
+        return view('reservations.edit', [
+            'reservation' => $reservation,
+            'livres' => Livre::orderBy('titre')->get(['id', 'titre', 'auteur']),
+            'etudiants' => User::whereIn('role', [User::ROLE_ETUDIANT, User::ROLE_ENSEIGNANT])
+                ->orderBy('name')->get(['id', 'name', 'prenom', 'matricule']),
+        ]);
     }
 
     public function update(Request $request, Reservation $reservation)
     {
-        $request->validate([
-            'user_id' => 'required|exists:users,id',
-            'livre_id' => 'required|exists:livres,id',
-            'date_reservation' => 'required|date',
-            'date_fin_reservation' => 'required|date|after_or_equal:date_reservation',
-            'notes' => 'nullable|string|max:500',
+        $this->authorize('update', $reservation);
+
+        $donnees = $request->validate([
+            'date_expiration' => ['required', 'date', 'after_or_equal:today'],
+            'statut' => ['required', 'in:active,expirée,annulée,honorée'],
+            'notes' => ['nullable', 'string', 'max:500'],
         ]);
 
-        $reservation->update($request->all());
-        
+        $reservation->update($donnees);
+        $this->reservations->reordonnerFile($reservation->livre);
+
         return redirect()->route('reservations.show', $reservation)
-            ->with('success', 'Réservation mise à jour avec succès.');
+            ->with('success', 'Réservation mise à jour.');
+    }
+
+    public function annuler(Request $request, Reservation $reservation)
+    {
+        $this->authorize('annuler', $reservation);
+
+        $this->reservations->annuler($reservation, $request->input('motif'));
+
+        return back()->with('success', 'Réservation annulée.');
+    }
+
+    /** Met un exemplaire de côté et prévient le premier de la file. */
+    public function notifier(Reservation $reservation)
+    {
+        $this->authorize('update', $reservation);
+
+        $exemplaire = $reservation->livre?->exemplairesDisponibles()->first();
+
+        if (! $exemplaire) {
+            return back()->with('error', 'Aucun exemplaire disponible à mettre de côté pour le moment.');
+        }
+
+        $this->reservations->notifierProchainDeLaFile($reservation->livre, $exemplaire);
+
+        return back()->with('success', 'Le premier usager de la file a été notifié.');
     }
 
     public function destroy(Reservation $reservation)
     {
-        DB::beginTransaction();
-        try {
-            // Incrémenter les exemplaires disponibles avant suppression
-            $livre = $reservation->livre;
-            $livre->increment('exemplaires_disponibles');
-            
-            // Mettre à jour le statut du livre si nécessaire
-            if ($livre->exemplaires_disponibles > 0 && $livre->statut == 'réservé') {
-                $livre->update(['statut' => 'disponible']);
-            }
+        $this->authorize('delete', $reservation);
 
-            // Supprimer la réservation
-            $reservation->delete();
-            
-            DB::commit();
-        
-            return redirect()->route('reservations.index')
-                           ->with('success', 'Réservation supprimée avec succès.');
-        } catch (\Exception $e) {
-            DB::rollBack();
-            
-            return back()->with('error', 'Une erreur est survenue lors de la suppression.');
+        $livre = $reservation->livre;
+
+        if ($reservation->statut === Reservation::STATUT_ACTIVE) {
+            $this->reservations->annuler($reservation, 'Suppression administrative');
         }
+
+        $reservation->delete();
+        $this->reservations->reordonnerFile($livre);
+
+        return redirect()->route('reservations.index')->with('success', 'Réservation supprimée.');
     }
 }

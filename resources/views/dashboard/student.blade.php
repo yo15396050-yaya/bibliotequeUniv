@@ -1,265 +1,220 @@
 @extends('layouts.dashboard')
 
-@section('title', 'Mon Espace Personnel')
+@section('title', 'Mon espace — Bibliothèque Universitaire')
 
 @section('content')
-<div class="container-fluid px-4" style="background-color: #FAF3E0; min-height: 100vh;">
-    <!-- En-tête -->
-    <div class="d-flex justify-content-between align-items-center mb-4 border-bottom pb-3 pt-3">
-        <div>
-            <h1 class="h2 mb-1 fw-bold" style="color: #3E2723;">Mon Espace Personnel</h1>
-            <p class="mb-0 text-muted"><strong>Heureux de vous revoir,</strong> <span class="fw-bold" style="color: #D4AF37;">{{ Auth::user()->name }} 👋</span></p>
+<x-entete-page :titre="'Bonjour ' . (Auth::user()->prenom ?: Auth::user()->name)" icone="fa-user"
+    sous-titre="Voici l'état de vos emprunts, réservations et pénalités.">
+    <a href="{{ route('catalogue') }}" class="btn btn-warning">
+        <i class="fas fa-book-open-reader me-1"></i> Parcourir le catalogue
+    </a>
+</x-entete-page>
+
+@php $devise = \App\Support\Parametres::devise(); @endphp
+
+{{-- Indicateurs personnels --}}
+<div class="row g-3 mb-4">
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="Emprunts actifs" :valeur="$stats['emprunts_en_cours']"
+            icone="fa-hand-holding" couleur="info"
+            :sous-titre="'Quota : ' . $stats['quota'] . ' ouvrage(s)'"
+            :lien="route('mes-emprunts')" />
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="À retourner bientôt" :valeur="$stats['a_retourner_bientot']"
+            icone="fa-clock" couleur="warning" :lien="route('mes-emprunts')" />
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="En retard" :valeur="$stats['emprunts_en_retard']"
+            icone="fa-triangle-exclamation" couleur="danger"
+            :lien="route('mes-emprunts', ['statut' => 'en retard'])" />
+    </div>
+    <div class="col-12 col-sm-6 col-xl-3">
+        <x-carte-stat titre="Réservations" :valeur="$stats['reservations_actives']"
+            icone="fa-bookmark" couleur="gold" :lien="route('reservations.index')" />
+    </div>
+</div>
+
+@if($stats['penalites_impayees'] > 0)
+    <div class="alert alert-warning border-0 shadow-sm d-flex align-items-center gap-3">
+        <i class="fas fa-money-bill-wave fa-lg"></i>
+        <div class="flex-grow-1">
+            <strong>Pénalités impayées : {{ \App\Support\Parametres::formaterMontant($stats['penalites_impayees']) }}</strong>
+            <div class="small">Régularisez votre situation auprès de la bibliothèque pour continuer à emprunter.</div>
         </div>
-        <div class="d-flex align-items-center gap-3">
-            <span class="badge rounded-pill p-2 shadow-sm" style="background-color: #5D4037; color: #D4AF37;">
-                Matricule: {{ Auth::user()->matricule ?? 'N/A' }}
-            </span>
+        <a href="{{ route('penalites.index') }}" class="btn btn-sm btn-outline-dark">Voir le détail</a>
+    </div>
+@endif
+
+<div class="row g-3">
+    {{-- Emprunts en cours --}}
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-hand-holding me-2" style="color: var(--accent-gold);"></i>Mes emprunts en cours</h5>
+                <a href="{{ route('mes-emprunts') }}" class="small text-decoration-none">Tout voir</a>
+            </div>
+            <div class="card-body p-0">
+                @forelse($emprunts_en_cours as $emprunt)
+                    @php $jours = $emprunt->joursRestants(); $retard = $emprunt->estEnRetard(); @endphp
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                        <div class="min-w-0 me-2">
+                            <a href="{{ route('livres.show', $emprunt->livre_id) }}"
+                               class="fw-semibold text-decoration-none d-block text-truncate" style="color: var(--text-main);">
+                                {{ $emprunt->livre?->titre }}
+                            </a>
+                            <small style="opacity:.7;">
+                                À rendre le {{ $emprunt->date_retour_prevue->format('d/m/Y') }}
+                            </small>
+                        </div>
+                        <div class="text-end flex-shrink-0 d-flex align-items-center gap-2">
+                            @if($retard)
+                                <span class="badge bg-danger">{{ $emprunt->joursRetard() }} j de retard</span>
+                            @elseif($jours <= 3)
+                                <span class="badge bg-warning text-dark">J-{{ $jours }}</span>
+                            @else
+                                <span class="badge bg-success-subtle text-success-emphasis">J-{{ $jours }}</span>
+                            @endif
+
+                            @if($emprunt->peutEtreRenouvele())
+                                <form action="{{ route('emprunts.renouveler', $emprunt) }}" method="POST">
+                                    @csrf
+                                    <button class="btn btn-sm btn-outline-secondary" title="Demander un renouvellement">
+                                        <i class="fas fa-arrows-rotate"></i>
+                                    </button>
+                                </form>
+                            @endif
+                        </div>
+                    </div>
+                @empty
+                    <x-vide message="Vous n'avez aucun emprunt en cours." icone="fa-book">
+                        <a href="{{ route('catalogue') }}" class="btn btn-sm btn-warning">Découvrir le catalogue</a>
+                    </x-vide>
+                @endforelse
+            </div>
         </div>
     </div>
 
-    <!-- Cartes de Statistiques Personnelles -->
-    <div class="row mb-4">
-        <!-- Emprunts Totaux -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 py-2" style="border-left: 5px solid #D4AF37 !important;">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #A1887F;">Total Emprunts</div>
-                            <div class="h3 mb-0 font-weight-bold" style="color: #3E2723;">{{ $stats['total_emprunts'] }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-book fa-2x" style="color: #D4AF37;"></i>
-                        </div>
-                    </div>
-                </div>
+    {{-- Réservations --}}
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-3 d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-bookmark me-2" style="color: var(--accent-gold);"></i>Mes réservations</h5>
+                <a href="{{ route('reservations.index') }}" class="small text-decoration-none">Tout voir</a>
             </div>
-        </div>
-
-        <!-- Emprunts en cours -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 py-2" style="border-left: 5px solid #5D4037 !important;">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #A1887F;">Emprunts en cours</div>
-                            <div class="h3 mb-0 font-weight-bold" style="color: #3E2723;">{{ $stats['emprunts_en_cours'] }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-hourglass-half fa-2x" style="color: #5D4037;"></i>
-                        </div>
+            <div class="card-body p-0">
+                @forelse($reservations_recentes as $reservation)
+                    <div class="px-3 py-2 border-bottom">
+                        <a href="{{ route('reservations.show', $reservation) }}"
+                           class="fw-semibold text-decoration-none d-block text-truncate" style="color: var(--text-main);">
+                            {{ $reservation->livre?->titre }}
+                        </a>
+                        <small style="opacity:.75;">
+                            @if($reservation->estPrete())
+                                <span class="text-success fw-semibold">Disponible</span> — à retirer avant le
+                                {{ $reservation->date_limite_retrait?->format('d/m/Y') }}
+                            @else
+                                Position {{ $reservation->position_file_attente }} dans la file d'attente
+                            @endif
+                        </small>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Réservations Actives -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 py-2" style="border-left: 5px solid #8D6E63 !important;">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #A1887F;">Réservations Actives</div>
-                            <div class="h3 mb-0 font-weight-bold" style="color: #3E2723;">{{ $stats['reservations_actives'] }}</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-bookmark fa-2x" style="color: #8D6E63;"></i>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Mes Amendes -->
-        <div class="col-xl-3 col-md-6 mb-4">
-            <div class="card border-0 shadow-sm h-100 py-2" style="border-left: 5px solid #e74c3c !important;">
-                <div class="card-body">
-                    <div class="row no-gutters align-items-center">
-                        <div class="col mr-2">
-                            <div class="text-xs font-weight-bold text-uppercase mb-1" style="color: #A1887F;">Mes Amendes</div>
-                            <div class="h3 mb-0 font-weight-bold" style="color: #e74c3c;">{{ number_format($stats['total_amendes'], 0, ',', ' ') }} FCFA</div>
-                        </div>
-                        <div class="col-auto">
-                            <i class="fas fa-coins fa-2x" style="color: #e74c3c;"></i>
-                        </div>
-                    </div>
-                </div>
+                @empty
+                    <x-vide message="Aucune réservation en cours." icone="fa-bookmark" />
+                @endforelse
             </div>
         </div>
     </div>
 
-    <!-- Section Principale -->
-    <div class="row mb-5">
-        <!-- Historique Récent -->
-        <div class="col-xl-8 col-lg-7 mb-4">
-            <div class="card shadow-sm border-0 h-100">
-                <div class="card-header py-3 bg-white border-bottom-gold d-flex align-items-center justify-content-between">
-                    <h6 class="m-0 font-weight-bold text-brown"><i class="fas fa-history me-2 text-gold"></i>Mes Dernières Activités</h6>
-                    <a href="{{ route('mes-emprunts') }}" class="btn btn-sm btn-outline-brown rounded-pill">Voir tout</a>
-                </div>
-                <div class="card-body p-0">
-                    <div class="table-responsive">
-                        <table class="table table-hover align-middle mb-0">
-                            <thead class="bg-light small text-uppercase">
-                                <tr>
-                                    <th class="ps-3">Livre</th>
-                                    <th>Date d'emprunt</th>
-                                    <th>Date de retour prévue</th>
-                                    <th>Statut</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                @forelse($emprunts_recents as $emprunt)
-                                    <tr>
-                                        <td class="ps-3">
-                                            <div class="fw-bold text-brown">{{ $emprunt->livre->titre }}</div>
-                                            <small class="text-muted">{{ $emprunt->livre->auteur }}</small>
-                                        </td>
-                                        <td>{{ $emprunt->date_emprunt->format('d/m/Y') }}</td>
-                                        <td>
-                                            <span class="{{ $emprunt->date_retour_prevue->isPast() && $emprunt->statut !== 'retourné' ? 'text-danger fw-bold' : '' }}">
-                                                {{ $emprunt->date_retour_prevue->format('d/m/Y') }}
-                                            </span>
-                                        </td>
-                                        <td>
-                                            @if($emprunt->statut == 'retourné')
-                                                <span class="badge bg-success-soft text-success px-2 py-1">Retourné</span>
-                                            @elseif($emprunt->statut == 'en retard')
-                                                <span class="badge bg-danger-soft text-danger px-2 py-1">En retard</span>
-                                            @else
-                                                <span class="badge bg-gold-soft text-brown px-2 py-1">En cours</span>
-                                            @endif
-                                        </td>
-                                    </tr>
-                                @empty
-                                    <tr>
-                                        <td colspan="4" class="text-center py-4 text-muted fst-italic">
-                                            Aucune activité récente trouvée.
-                                        </td>
-                                    </tr>
-                                @endforelse
-                            </tbody>
-                        </table>
-                    </div>
-                </div>
+    {{-- Historique récent --}}
+    <div class="col-lg-7">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="mb-0"><i class="fas fa-clock-rotate-left me-2" style="color: var(--accent-gold);"></i>Historique récent</h5>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-hover align-middle mb-0">
+                    <thead>
+                        <tr>
+                            <th>Ouvrage</th>
+                            <th class="d-none d-md-table-cell">Emprunté le</th>
+                            <th>Statut</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @forelse($emprunts_recents as $emprunt)
+                            <tr>
+                                <td class="text-truncate" style="max-width: 260px;">{{ $emprunt->livre?->titre }}</td>
+                                <td class="d-none d-md-table-cell">{{ $emprunt->date_emprunt?->format('d/m/Y') }}</td>
+                                <td><x-badge :statut="$emprunt->statut" /></td>
+                            </tr>
+                        @empty
+                            <tr><td colspan="3"><x-vide message="Aucun emprunt à ce jour." icone="fa-book" /></td></tr>
+                        @endforelse
+                    </tbody>
+                </table>
             </div>
         </div>
+    </div>
 
-        <!-- Mes Réservations & Raccourcis -->
-        <div class="col-xl-4 col-lg-5">
-            <!-- Réservations -->
-            <div class="card shadow-sm border-0 mb-4 h-100">
-                <div class="card-header py-3 bg-white border-bottom-gold">
-                    <h6 class="m-0 font-weight-bold text-brown"><i class="fas fa-bookmark me-2 text-gold"></i>Mes Réservations</h6>
-                </div>
-                <div class="card-body">
-                    @forelse($reservations_recentes as $res)
-                        <div class="d-flex align-items-center mb-3 p-2 rounded border-start border-4 border-gold bg-light">
-                            <div class="ms-2">
-                                <div class="fw-bold text-truncate" style="max-width: 200px;">{{ $res->livre->titre }}</div>
-                                <small class="text-muted">Le {{ $res->created_at->format('d/m/Y') }}</small>
-                            </div>
-                            <div class="ms-auto">
-                                <span class="badge bg-gold text-white">Active</span>
-                            </div>
+    {{-- Pénalités --}}
+    <div class="col-lg-5">
+        <div class="card border-0 shadow-sm h-100">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="mb-0"><i class="fas fa-money-bill-wave me-2" style="color: var(--accent-gold);"></i>Mes pénalités</h5>
+            </div>
+            <div class="card-body p-0">
+                @forelse($penalites as $penalite)
+                    <div class="d-flex justify-content-between align-items-center px-3 py-2 border-bottom">
+                        <div class="min-w-0 me-2">
+                            <div class="fw-semibold small">{{ $penalite->libelle_type }}</div>
+                            <small style="opacity:.7;">{{ $penalite->emprunt?->livre?->titre ?? $penalite->motif }}</small>
+                        </div>
+                        <div class="text-end flex-shrink-0">
+                            <div class="fw-bold">{{ number_format($penalite->reste_a_payer, 0, ',', ' ') }} {{ $devise }}</div>
+                            <x-badge :statut="$penalite->statut" :texte="$penalite->libelle_statut" />
+                        </div>
+                    </div>
+                @empty
+                    <x-vide message="Aucune pénalité : bravo !" icone="fa-circle-check" />
+                @endforelse
+            </div>
+        </div>
+    </div>
+
+    {{-- Recommandations --}}
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="mb-0"><i class="fas fa-wand-magic-sparkles me-2" style="color: var(--accent-gold);"></i>Suggestions pour vous</h5>
+            </div>
+            <div class="card-body">
+                <div class="row g-3">
+                    @forelse($recommandations as $livre)
+                        <div class="col-6 col-md-4 col-lg-2">
+                            <a href="{{ route('livres.show', $livre) }}" class="text-decoration-none" style="color: var(--text-main);">
+                                <div class="card h-100 border-0 shadow-sm">
+                                    @if($livre->image_couverture)
+                                        <img src="{{ asset('storage/' . $livre->image_couverture) }}" class="card-img-top"
+                                             alt="{{ $livre->titre }}" style="height:150px; object-fit:cover;">
+                                    @else
+                                        <div class="d-flex align-items-center justify-content-center"
+                                             style="height:150px; background: var(--wood-primary);">
+                                            <i class="fas fa-book fa-2x" style="color: var(--accent-gold);"></i>
+                                        </div>
+                                    @endif
+                                    <div class="card-body p-2">
+                                        <div class="small fw-semibold text-truncate">{{ $livre->titre }}</div>
+                                        <div class="small text-truncate" style="opacity:.65;">{{ $livre->auteur }}</div>
+                                    </div>
+                                </div>
+                            </a>
                         </div>
                     @empty
-                        <div class="text-center py-4 text-muted">
-                            <i class="fas fa-bookmark fa-2x mb-2 opacity-25"></i>
-                            <p class="small mb-0">Aucune réservation active.</p>
-                        </div>
+                        <div class="col-12"><x-vide message="Aucune suggestion pour le moment." icone="fa-wand-magic-sparkles" /></div>
                     @endforelse
-                    
-                    <div class="d-grid mt-3">
-                        <a href="{{ route('catalogue') }}" class="btn btn-gold text-white fw-bold shadow-sm">
-                            <i class="fas fa-search me-2"></i>Parcourir le catalogue
-                        </a>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Services Rapides -->
-    <div class="row mb-5">
-        <div class="col-12 text-center">
-            <div class="p-4 rounded shadow-sm bg-white border">
-                <h6 class="mb-4 fw-bold text-uppercase letter-spacing-2" style="color: #5D4037;">Mes Services Rapides</h6>
-                <div class="d-flex justify-content-around flex-wrap">
-                    <div class="action-item">
-                        <a href="{{ route('catalogue') }}" class="btn-action bg-gold shadow">
-                            <i class="fas fa-book-open text-white"></i>
-                        </a>
-                        <p class="mt-2 small fw-bold text-brown">Catalogue</p>
-                    </div>
-                    <div class="action-item">
-                        <a href="{{ route('mes-emprunts') }}" class="btn-action bg-brown shadow">
-                            <i class="fas fa-history text-white"></i>
-                        </a>
-                        <p class="mt-2 small fw-bold text-brown">Mes Emprunts</p>
-                    </div>
-                    <div class="action-item">
-                        <a href="{{ route('profile') }}" class="btn-action bg-leather shadow">
-                            <i class="fas fa-user-cog text-white"></i>
-                        </a>
-                        <p class="mt-2 small fw-bold text-brown">Mon Profil</p>
-                    </div>
                 </div>
             </div>
         </div>
     </div>
 </div>
-
-<style>
-    :root {
-        --brown: #5D4037;
-        --gold: #D4AF37;
-        --leather: #8D6E63;
-        --paper: #FAF3E0;
-    }
-    .text-brown { color: var(--brown); }
-    .text-gold { color: var(--gold); }
-    .bg-brown { background-color: var(--brown); }
-    .bg-gold { background-color: var(--gold); }
-    .bg-leather { background-color: var(--leather); }
-    .border-bottom-gold { border-bottom: 2px solid var(--gold) !important; }
-    
-    .bg-success-soft { background-color: rgba(46, 204, 113, 0.1); }
-    .bg-danger-soft { background-color: rgba(231, 76, 60, 0.1); }
-    .bg-gold-soft { background-color: rgba(212, 175, 55, 0.1); }
-
-    .btn-outline-brown {
-        color: var(--brown);
-        border-color: var(--brown);
-    }
-    .btn-outline-brown:hover {
-        background-color: var(--brown);
-        color: white;
-    }
-    .btn-gold {
-        background-color: var(--gold);
-        border: none;
-    }
-    .btn-gold:hover {
-        background-color: #B8860B;
-        color: white;
-    }
-
-    .btn-action {
-        width: 60px;
-        height: 60px;
-        border-radius: 50%;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        text-decoration: none;
-        transition: all 0.3s ease;
-        font-size: 1.5rem;
-    }
-    .btn-action:hover {
-        transform: scale(1.1) rotate(5deg);
-        filter: brightness(1.2);
-    }
-    .letter-spacing-2 { letter-spacing: 2px; }
-</style>
 @endsection
