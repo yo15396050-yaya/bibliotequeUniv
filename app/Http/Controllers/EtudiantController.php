@@ -2,8 +2,8 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Requests\StoreUserRequest;
-use App\Http\Requests\UpdateUserRequest;
+use App\Http\Requests\StoreEtudiantRequest;
+use App\Http\Requests\UpdateEtudiantRequest;
 use App\Models\AnneeAcademique;
 use App\Models\User;
 use App\Services\AuditService;
@@ -58,7 +58,7 @@ class EtudiantController extends Controller
         ]);
     }
 
-    public function store(StoreUserRequest $request)
+    public function store(StoreEtudiantRequest $request)
     {
         $donnees = $request->validated();
         $donnees['role'] = User::ROLE_ETUDIANT;
@@ -67,7 +67,7 @@ class EtudiantController extends Controller
             $donnees['photo'] = $request->file('photo')->store('etudiants', 'public');
         }
 
-        $donnees['password'] = $donnees['password'] ?: $donnees['matricule'];
+        $donnees['password'] = $donnees['password'] ?? null ?: $donnees['matricule'];
         $donnees['actif'] = true;
         $donnees['email_verified_at'] = now();
 
@@ -113,7 +113,7 @@ class EtudiantController extends Controller
         ]);
     }
 
-    public function update(UpdateUserRequest $request, User $etudiant)
+    public function update(UpdateEtudiantRequest $request, User $etudiant)
     {
         $donnees = $request->validated();
 

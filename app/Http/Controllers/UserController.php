@@ -55,8 +55,8 @@ class UserController extends Controller
         }
 
         // Mot de passe par défaut = matricule (à changer à la première connexion).
-        $motDePasseGenere = empty($donnees['password']);
-        $donnees['password'] = $donnees['password'] ?: $donnees['matricule'];
+        $motDePasseGenere = empty($donnees['password'] ?? null);
+        $donnees['password'] = $donnees['password'] ?? null ?: $donnees['matricule'];
         $donnees['actif'] = true;
         $donnees['email_verified_at'] = now();
 
