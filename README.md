@@ -277,6 +277,9 @@ php artisan migrate:fresh --seed
 Les migrations historiques du projet sont conservées ; les extensions portent
 le préfixe `2026_09_10_*`.
 
+Validé sur **MariaDB 10.11** : `migrate:fresh --seed` puis la suite de tests
+complète s'exécutent sans erreur sur un serveur MySQL réel.
+
 ---
 
 ## 10. Procédure de lancement
@@ -300,7 +303,19 @@ view:cache`, un cron pour le planificateur et un superviseur pour
 
 ## 11. Tests réalisés
 
-`php artisan test` → **114 tests, 348 assertions, tous verts.**
+`php artisan test` → **125 tests, 385 assertions, tous verts.**
+
+La suite est exécutée sur **deux moteurs** : SQLite (rapide, par défaut) et
+**MariaDB 10.11 / MySQL**, la cible réelle du projet. Les 31 migrations et les
+seeders ont été validés sur MySQL — y compris la conversion de `users.role`
+d'un `ENUM` vers `VARCHAR(50)`, indispensable pour accueillir le rôle
+« enseignant ».
+
+```bash
+php artisan test                                   # SQLite
+DB_CONNECTION=mysql DB_DATABASE=bibliotheque_test \
+    php artisan test                               # MySQL
+```
 
 | Suite | Couverture |
 |---|---|
@@ -315,6 +330,7 @@ view:cache`, un cron pour le planificateur et un superviseur pour
 | `DocumentNumeriqueTest` | Stockage privé, formats refusés, accès par visibilité, téléchargement désactivé, compte suspendu, suppression du fichier |
 | `AuditTest` | Traçabilité création / emprunt / retour / changement de rôle, absence de mot de passe dans le journal |
 | `ParametresTest` | Valeurs par défaut, surcharge, cache, typage, effet immédiat sur les règles métier |
+| `FormulairesTest` | Tout champ obligatoire côté serveur existe dans le formulaire correspondant ; chaque écran validé par une soumission complète |
 | `SmokeTest` | Toutes les pages GET de l'application répondent sans erreur serveur |
 | `CodeBarreTest`, `ExportTest` | Génération Code 128, exports CSV/Excel, échappement |
 

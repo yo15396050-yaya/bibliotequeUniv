@@ -1,243 +1,127 @@
-@extends('layouts.app')
-
-@section('title', 'Mon Profil')
-
-@push('styles')
-<style>
-    /* Arrière-plan principal */
-    .profile-container {
-        background-color: #F4F7FC;
-        padding: 2rem 0;
-        min-height: 100vh;
-    }
-
-    /* Carte et En-tête */
-    .card-custom {
-        border: none;
-        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-    }
-
-    .card-custom .card-header {
-        background-color: #123A7A !important; /* Bois Sombre */
-        color: #F4F7FC !important;
-        border-bottom: 3px solid #2563EB !important; /* Bordure Or */
-    }
-
-    /* Titres de sections */
-    .section-title {
-        color: #123A7A;
-        border-bottom: 2px solid #2563EB !important;
-        font-weight: bold;
-        text-transform: uppercase;
-        font-size: 0.9rem;
-        letter-spacing: 1px;
-    }
-
-    /* Champs de formulaire */
-    .form-control:focus {
-        border-color: #2563EB !important; /* Focus Or */
-        box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
-    }
-
-    /* Bouton d'enregistrement */
-    .btn-gold {
-        background-color: #2563EB !important;
-        border-color: #2563EB !important;
-        color: #123A7A !important;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-
-    .btn-gold:hover {
-        background-color: #123A7A !important; /* Bois Sombre au survol */
-        border-color: #123A7A !important;
-        color: #F4F7FC !important;
-    }
-
-    /* Alertes et badges */
-    .alert-info-custom {
-        background-color: #fcf8e3;
-        border-left: 4px solid #2563EB;
-        color: #856404;
-    }
-</style>
-@endpush
-
-@section('breadcrumbs')
-    <li class="breadcrumb-item"><a href="{{ route('dashboard') }}">Tableau de bord</a></li>
-    <li class="breadcrumb-item active">Mon Profil</li>
-@endsection
+@extends('layouts.dashboard')
+@section('title', 'Mon profil')
 
 @section('content')
-<div class="profile-container">
-    <div class="container-fluid">
-        <div class="row justify-content-center">
-            <div class="col-md-8">
-                <div class="card card-custom">
-                    <div class="card-header">
-                        <h5 class="mb-0">
-                            <i class="fas fa-user-circle me-2"></i>Mon Profil
-                        </h5>
-                    </div>
-                    <div class="card-body bg-white">
-                        <form action="{{ route('profile.update') }}" method="POST">
-                            @csrf
-                            @method('PUT')
+<x-entete-page titre="Mon profil" icone="fa-user-shield"
+    :sous-titre="$user->libelle_role . ' · ' . ($user->matricule ?? '')" />
 
-                            <div class="mb-5">
-                                <h6 class="section-title pb-2 mb-4">
-                                    <i class="fas fa-info-circle me-2"></i>Informations personnelles
-                                </h6>
-                                
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="name" class="form-label fw-bold">Nom complet *</label>
-                                        <input type="text" 
-                                               class="form-control @error('name') is-invalid @enderror" 
-                                               id="name" name="name" 
-                                               value="{{ old('name', $user->name) }}" required>
-                                        @error('name')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
+<x-erreurs />
 
-                                    <div class="col-md-6 mb-3">
-                                        <label for="email" class="form-label fw-bold">Email *</label>
-                                        <input type="email" 
-                                               class="form-control @error('email') is-invalid @enderror" 
-                                               id="email" name="email" 
-                                               value="{{ old('email', $user->email) }}" required>
-                                        @error('email')
-                                            <div class="invalid-feedback">{{ $message }}</div>
-                                        @enderror
-                                    </div>
-                                </div>
+<div class="row g-3">
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body text-center">
+                <img src="{{ $user->url_photo }}" class="rounded-circle mb-3"
+                     style="width:120px;height:120px;object-fit:cover;" alt="">
+                <h5 class="mb-1">{{ $user->name }}</h5>
+                <div class="mb-3"><x-badge :statut="$user->statut" :texte="$user->libelle_statut" /></div>
 
-                                <div class="row">
-                                    <div class="col-md-6 mb-3">
-                                        <label for="telephone" class="form-label fw-bold">Téléphone</label>
-                                        <input type="text" 
-                                               class="form-control @error('telephone') is-invalid @enderror" 
-                                               id="telephone" name="telephone" 
-                                               value="{{ old('telephone', $user->telephone) }}">
-                                    </div>
+                <dl class="row small text-start mb-0">
+                    <dt class="col-5">Matricule</dt><dd class="col-7">{{ $user->matricule ?? '—' }}</dd>
+                    <dt class="col-5">Profil</dt><dd class="col-7">{{ $user->libelle_role }}</dd>
+                    <dt class="col-5">Faculté</dt><dd class="col-7">{{ $user->faculte ?? '—' }}</dd>
+                    <dt class="col-5">Filière</dt><dd class="col-7">{{ $user->filiere ?? '—' }}</dd>
+                    <dt class="col-5">Niveau</dt><dd class="col-7">{{ $user->niveau ?? '—' }}</dd>
+                    @if($user->estEmprunteur())
+                        <dt class="col-5">Quota</dt><dd class="col-7">{{ $user->quotaEmprunts() }} ouvrage(s)</dd>
+                        <dt class="col-5">Durée d'emprunt</dt><dd class="col-7">{{ $user->dureeEmprunt() }} jours</dd>
+                    @endif
+                    <dt class="col-5">Inscrit depuis</dt><dd class="col-7">{{ $user->created_at?->format('d/m/Y') }}</dd>
+                </dl>
+            </div>
+        </div>
 
-                                    <div class="col-md-6 mb-3">
-                                        <label for="adresse" class="form-label fw-bold">Adresse</label>
-                                        <input type="text" 
-                                               class="form-control @error('adresse') is-invalid @enderror" 
-                                               id="adresse" name="adresse" 
-                                               value="{{ old('adresse', $user->adresse) }}">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mb-5">
-                                <h6 class="section-title pb-2 mb-4">
-                                    <i class="fas fa-key me-2"></i>Sécurité
-                                </h6>
-                                
-                                <div class="alert alert-info-custom mb-4 shadow-sm">
-                                    <i class="fas fa-lightbulb me-2"></i>
-                                    Laissez ces champs vides si vous ne souhaitez pas changer votre mot de passe.
-                                </div>
-
-                                <div class="row">
-                                    <div class="col-md-4 mb-3">
-                                        <label for="current_password" class="form-label fw-bold">Mot de passe actuel</label>
-                                        <input type="password" class="form-control @error('current_password') is-invalid @enderror" 
-                                               id="current_password" name="current_password">
-                                    </div>
-
-                                    <div class="col-md-4 mb-3">
-                                        <label for="new_password" class="form-label fw-bold">Nouveau mot de passe</label>
-                                        <input type="password" class="form-control @error('new_password') is-invalid @enderror" 
-                                               id="new_password" name="new_password">
-                                    </div>
-
-                                    <div class="col-md-4 mb-3">
-                                        <label for="new_password_confirmation" class="form-label fw-bold">Confirmation</label>
-                                        <input type="password" class="form-control" 
-                                               id="new_password_confirmation" name="new_password_confirmation">
-                                    </div>
-                                </div>
-                            </div>
-
-                            <div class="mb-5">
-                                <h6 class="section-title pb-2 mb-4">
-                                    <i class="fas fa-database me-2"></i>Informations système
-                                </h6>
-                                
-                                <div class="row text-center">
-                                    <div class="col-md-4">
-                                        <div class="p-3 border rounded bg-light">
-                                            <small class="text-muted d-block">Rôle</small>
-                                            <span class="fw-bold">{{ ucfirst($user->role ?? 'Étudiant') }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="p-3 border rounded bg-light">
-                                            <small class="text-muted d-block">Membre depuis</small>
-                                            <span class="fw-bold">{{ $user->created_at?->format('d/m/Y') ?? 'Non définie' }}</span>
-                                        </div>
-                                    </div>
-                                    <div class="col-md-4">
-                                        <div class="p-3 border rounded bg-light">
-                                            <small class="text-muted d-block">Dernière connexion</small>
-                                            <span class="fw-bold">{{ $user->last_login_at ? $user->last_login_at->format('d/m/Y') : 'N/A' }}</span>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            <hr class="my-4">
-
-                            <div class="d-flex justify-content-between align-items-center">
-                                <a href="{{ route('dashboard') }}" class="btn btn-outline-secondary px-4">
-                                    <i class="fas fa-arrow-left me-2"></i>Retour
-                                </a>
-                                <div>
-                                    <button type="reset" class="btn btn-link text-danger text-decoration-none me-3">
-                                        Réinitialiser
-                                    </button>
-                                    <button type="submit" class="btn btn-gold px-4 py-2 shadow-sm">
-                                        <i class="fas fa-save me-2"></i>Mettre à jour le profil
-                                    </button>
-                                </div>
-                            </div>
-                        </form>
-                    </div>
+        @if($user->estEmprunteur())
+            @php $motifs = $user->motifsBlocageEmprunt(); @endphp
+            <div class="card border-0 shadow-sm mt-3">
+                <div class="card-body">
+                    @if($motifs === [])
+                        <div class="text-success small">
+                            <i class="fas fa-circle-check me-1"></i>
+                            Votre compte vous permet d'emprunter.
+                        </div>
+                    @else
+                        <div class="small">
+                            <strong class="text-danger"><i class="fas fa-ban me-1"></i>Emprunts bloqués :</strong>
+                            <ul class="mb-0 ps-3 mt-1">
+                                @foreach($motifs as $motif)<li>{{ $motif }}</li>@endforeach
+                            </ul>
+                        </div>
+                    @endif
                 </div>
+            </div>
+        @endif
+    </div>
+
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h5 class="mb-0"><i class="fas fa-pen me-2" style="color:var(--accent-gold);"></i>Mes informations</h5>
+            </div>
+            <div class="card-body">
+                <form action="{{ route('profile.update') }}" method="POST" enctype="multipart/form-data">
+                    @csrf @method('PUT')
+
+                    <div class="row g-3">
+                        <div class="col-md-6">
+                            <label class="form-label">Nom complet <span class="text-danger">*</span></label>
+                            <input type="text" name="name" class="form-control @error('name') is-invalid @enderror"
+                                   value="{{ old('name', $user->name) }}" required>
+                            @error('name')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Prénom usuel</label>
+                            <input type="text" name="prenom" class="form-control" value="{{ old('prenom', $user->prenom) }}">
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Adresse e-mail <span class="text-danger">*</span></label>
+                            <input type="email" name="email" class="form-control @error('email') is-invalid @enderror"
+                                   value="{{ old('email', $user->email) }}" required>
+                            @error('email')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label">Téléphone</label>
+                            <input type="text" name="telephone" class="form-control" value="{{ old('telephone', $user->telephone) }}">
+                        </div>
+                        <div class="col-md-8">
+                            <label class="form-label">Adresse</label>
+                            <input type="text" name="adresse" class="form-control" value="{{ old('adresse', $user->adresse) }}">
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Photo de profil</label>
+                            <input type="file" name="photo" class="form-control" accept="image/*">
+                        </div>
+                    </div>
+
+                    <hr class="my-4">
+
+                    <h6 class="mb-3"><i class="fas fa-key me-2" style="color:var(--accent-gold);"></i>Changer de mot de passe</h6>
+                    <div class="row g-3">
+                        <div class="col-md-4">
+                            <label class="form-label">Mot de passe actuel</label>
+                            <input type="password" name="current_password" autocomplete="current-password"
+                                   class="form-control @error('current_password') is-invalid @enderror">
+                            @error('current_password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Nouveau mot de passe</label>
+                            <input type="password" name="new_password" autocomplete="new-password"
+                                   class="form-control @error('new_password') is-invalid @enderror">
+                            @error('new_password')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                            <div class="form-text">8 caractères minimum.</div>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label">Confirmation</label>
+                            <input type="password" name="new_password_confirmation" autocomplete="new-password" class="form-control">
+                        </div>
+                    </div>
+
+                    <div class="mt-4">
+                        <button class="btn btn-warning"><i class="fas fa-save me-1"></i> Enregistrer les modifications</button>
+                    </div>
+                </form>
             </div>
         </div>
     </div>
 </div>
 @endsection
-
-@push('scripts')
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const currentPassword = document.getElementById('current_password');
-        const newPassword = document.getElementById('new_password');
-        const confirmPassword = document.getElementById('new_password_confirmation');
-        
-        function validatePasswords() {
-            if (newPassword.value !== confirmPassword.value) {
-                confirmPassword.setCustomValidity('Les mots de passe ne correspondent pas');
-            } else {
-                confirmPassword.setCustomValidity('');
-            }
-            
-            if (newPassword.value && !currentPassword.value) {
-                currentPassword.setCustomValidity('Veuillez saisir votre mot de passe actuel');
-            } else {
-                currentPassword.setCustomValidity('');
-            }
-        }
-        
-        newPassword.addEventListener('input', validatePasswords);
-        confirmPassword.addEventListener('input', validatePasswords);
-        currentPassword.addEventListener('input', validatePasswords);
-    });
-</script>
-@endpush

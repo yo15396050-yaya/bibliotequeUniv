@@ -1,177 +1,116 @@
 @extends('layouts.dashboard')
-
-@section('title', 'Mes Lectures & Emprunts')
+@section('title', 'Mes emprunts')
 
 @section('content')
-<style>
-    .book-card {
-        border: none;
-        border-radius: 12px;
-        transition: transform 0.2s;
-        background: #fff;
-    }
-    .book-card:hover {
-        transform: translateY(-3px);
-    }
-    .status-indicator {
-        width: 10px;
-        height: 10px;
-        border-radius: 50%;
-        display: inline-block;
-        margin-right: 5px;
-    }
-    .progress {
-        height: 8px;
-        border-radius: 10px;
-        background-color: #f0f0f0;
-    }
-    .fine-alert {
-        background-color: #fff1f0;
-        border: 1px solid #ffa39e;
-        color: #cf1322;
-        padding: 10px;
-        border-radius: 8px;
-        font-weight: bold;
-    }
-</style>
+<x-entete-page titre="Mes emprunts" icone="fa-hand-holding"
+    :sous-titre="$emprunts->total() . ' emprunt(s) dans votre historique'">
+    <a href="{{ route('catalogue') }}" class="btn btn-warning">
+        <i class="fas fa-book-open-reader me-1"></i> Parcourir le catalogue
+    </a>
+</x-entete-page>
 
-<div class="container-fluid py-4">
-    <div class="row mb-4">
-        <div class="col-12">
-            <h2 class="fw-bold" style="color: #123A7A;">
-                <i class="fas fa-book-open me-2 text-warning"></i>Ma Bibliothèque Personnelle
-            </h2>
-            <p class="text-muted">Retrouvez ici l'historique de vos lectures et l'état de vos emprunts actuels.</p>
-        </div>
-    </div>
-
-    @php $totalAmande = $emprunts->sum('amende'); @endphp
-    @if($totalAmande > 0)
-    <div class="row mb-4">
-        <div class="col-12">
-            <div class="fine-alert shadow-sm d-flex align-items-center justify-content-between">
-                <div>
-                    <i class="fas fa-exclamation-circle me-2"></i>
-                    Attention : Vous avez des frais de retard cumulés de {{ number_format($totalAmande, 0, ',', ' ') }} FCFA.
-                </div>
-                <button class="btn btn-sm btn-danger">Régler maintenant</button>
-            </div>
-        </div>
-    </div>
-    @endif
-
-    <div class="card book-card shadow-sm">
-        <div class="card-header bg-white py-3">
-            <div class="row align-items-center">
-                <div class="col">
-                    <h5 class="mb-0 fw-bold">Liste de mes mouvements</h5>
-                </div>
-                <div class="col-auto text-muted small">
-                    {{ $emprunts->total() }} ouvrage(s) au total
-                </div>
-            </div>
-        </div>
-        <div class="card-body p-0">
-            @if($emprunts->isEmpty())
-                <div class="text-center py-5">
-                    <img src="https://cdn-icons-png.flaticon.com/512/3532/3532353.png" width="80" class="mb-3 opacity-50" alt="">
-                    <h5 class="text-muted">Vous n'avez pas encore emprunté de livres.</h5>
-                    <a href="{{ route('livres.index') }}" class="btn btn-sm btn-primary mt-2">Parcourir le catalogue</a>
-                </div>
-            @else
-                <div class="table-responsive">
-                    <table class="table table-hover align-middle mb-0">
-                        <thead class="table-light">
-                            <tr>
-                                <th class="ps-4">Ouvrage</th>
-                                <th>Dates de possession</th>
-                                <th>Progression Temps</th>
-                                <th>Statut & Frais</th>
-                                <th class="text-end pe-4">Détails</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            @foreach($emprunts as $emprunt)
-                            <tr>
-                                <td class="ps-4">
-                                    <div class="d-flex align-items-center">
-                                        <div class="bg-light p-2 rounded me-3">
-                                            <i class="fas fa-book fa-lg text-secondary"></i>
-                                        </div>
-                                        <div>
-                                            <div class="fw-bold text-dark">{{ $emprunt->livre->titre }}</div>
-                                            <div class="small text-muted">{{ $emprunt->livre->auteur }}</div>
-                                        </div>
-                                    </div>
-                                </td>
-                                <td>
-                                    <div class="small">
-                                        <span class="text-muted">Du</span> {{ $emprunt->date_emprunt->format('d/m/Y') }}<br>
-                                        <span class="text-muted">Au</span> <strong>{{ $emprunt->date_retour_prevue->format('d/m/Y') }}</strong>
-                                    </div>
-                                </td>
-                                <td style="width: 200px;">
-                                    @if($emprunt->statut != 'retourné')
-                                        @php
-                                            $totalDays = $emprunt->date_emprunt->diffInDays($emprunt->date_retour_prevue);
-                                            $elapsedDays = $emprunt->date_emprunt->diffInDays(now());
-                                            $percent = ($totalDays > 0) ? min(100, round(($elapsedDays / $totalDays) * 100)) : 100;
-                                            $barColor = $percent > 80 ? 'bg-danger' : ($percent > 50 ? 'bg-warning' : 'bg-success');
-                                        @endphp
-                                        <div class="d-flex align-items-center">
-                                            <div class="progress w-100 me-2">
-                                                <div class="progress-bar {{ $barColor }}" style="width: {{ $percent }}%"></div>
-                                            </div>
-                                            <span class="small fw-bold">{{ $percent }}%</span>
-                                        </div>
-                                    @else
-                                        <span class="badge bg-light text-success border">Restitué le {{ $emprunt->date_retour_effective->format('d/m/Y') }}</span>
-                                    @endif
-                                </td>
-                                <td>
-                                    @if($emprunt->statut == 'en cours')
-                                        <span class="status-indicator bg-warning"></span><span class="small fw-bold">À rendre</span>
-                                    @elseif($emprunt->statut == 'en retard')
-                                        <span class="status-indicator bg-danger"></span><span class="small fw-bold text-danger">En retard</span>
-                                    @else
-                                        <span class="status-indicator bg-success"></span><span class="small fw-bold text-success">Terminé</span>
-                                    @endif
-
-                                    @if($emprunt->amende > 0)
-                                        <div class="text-danger small mt-1 fw-bold">
-                                            <i class="fas fa-coins me-1"></i>{{ number_format($emprunt->amende, 0, ',', ' ') }} FCFA
-                                        </div>
-                                    @endif
-                                </td>
-                                <td class="text-end pe-4">
-                                    <a href="{{ route('emprunts.show', $emprunt) }}" class="btn btn-outline-secondary btn-sm rounded-pill">
-                                        <i class="fas fa-eye"></i>
-                                    </a>
-                                </td>
-                            </tr>
-                            @endforeach
-                        </tbody>
-                    </table>
-                </div>
-            @endif
-        </div>
-        @if($emprunts->hasPages())
-        <div class="card-footer bg-white py-3">
-            <div class="d-flex justify-content-center">
-                {{ $emprunts->links() }}
-            </div>
-        </div>
-        @endif
-    </div>
-
-    <div class="mt-4 p-3 bg-light rounded-3 border-start border-primary border-4">
-        <div class="d-flex">
-            <i class="fas fa-lightbulb text-warning me-3 fa-2x"></i>
-            <div>
-                <h6 class="fw-bold mb-1">Le saviez-vous ?</h6>
-                <p class="small mb-0 text-muted">Rendre vos livres à temps permet à d'autres étudiants de profiter des ressources de l'université. Si vous avez besoin de plus de temps, passez nous voir à l'accueil pour une prolongation !</p>
-            </div>
-        </div>
+<div class="card border-0 shadow-sm mb-3">
+    <div class="card-body py-2">
+        <ul class="nav nav-pills flex-wrap gap-1">
+            <li class="nav-item">
+                <a class="nav-link {{ request('statut') ? '' : 'active' }}" href="{{ route('mes-emprunts') }}">Tous</a>
+            </li>
+            @foreach(\App\Models\Emprunt::STATUTS as $cle => $libelle)
+                <li class="nav-item">
+                    <a class="nav-link {{ request('statut') === $cle ? 'active' : '' }}"
+                       href="{{ route('mes-emprunts', ['statut' => $cle]) }}">{{ $libelle }}</a>
+                </li>
+            @endforeach
+        </ul>
     </div>
 </div>
+
+<div class="row g-3">
+    @forelse($emprunts as $emprunt)
+        @php
+            $retard = $emprunt->joursRetard();
+            $jours = $emprunt->joursRestants();
+            $motifs = $emprunt->motifsBlocageRenouvellement();
+        @endphp
+        <div class="col-md-6 col-xl-4">
+            <div class="card border-0 shadow-sm h-100">
+                <div class="card-body d-flex gap-3">
+                    @if($emprunt->livre?->image_couverture)
+                        <img src="{{ asset('storage/'.$emprunt->livre->image_couverture) }}"
+                             class="rounded flex-shrink-0" style="width:64px;height:88px;object-fit:cover;" alt="">
+                    @else
+                        <div class="rounded d-flex align-items-center justify-content-center flex-shrink-0"
+                             style="width:64px;height:88px;background:var(--wood-primary);color:#fff;">
+                            <i class="fas fa-book"></i>
+                        </div>
+                    @endif
+
+                    <div class="min-w-0 flex-grow-1">
+                        <a href="{{ route('livres.show', $emprunt->livre_id) }}"
+                           class="fw-semibold text-decoration-none d-block" style="color:var(--text-main);">
+                            {{ $emprunt->livre?->titre }}
+                        </a>
+                        <div class="small mb-2" style="opacity:.65;">{{ $emprunt->livre?->auteur }}</div>
+
+                        <div class="small mb-1">
+                            <i class="fas fa-calendar-day me-1" style="opacity:.6;"></i>
+                            Emprunté le {{ $emprunt->date_emprunt?->format('d/m/Y') }}
+                        </div>
+                        <div class="small mb-2">
+                            <i class="fas fa-calendar-check me-1" style="opacity:.6;"></i>
+                            À rendre le {{ $emprunt->date_retour_prevue?->format('d/m/Y') }}
+                        </div>
+
+                        <div class="d-flex flex-wrap gap-1">
+                            <x-badge :statut="$emprunt->statut" />
+                            @if(! $emprunt->estRetourne())
+                                @if($retard > 0)
+                                    <span class="badge bg-danger">{{ $retard }} j de retard</span>
+                                @elseif($jours <= 3)
+                                    <span class="badge bg-warning text-dark">J-{{ $jours }}</span>
+                                @endif
+                            @endif
+                            @if($emprunt->nombre_renouvellements > 0)
+                                <span class="badge bg-secondary-subtle text-secondary-emphasis">
+                                    {{ $emprunt->nombre_renouvellements }} renouvellement(s)
+                                </span>
+                            @endif
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card-footer bg-transparent d-flex gap-2">
+                    <a href="{{ route('emprunts.show', $emprunt) }}" class="btn btn-sm btn-outline-secondary flex-grow-1">
+                        <i class="fas fa-eye me-1"></i> Détail
+                    </a>
+                    @if($emprunt->estEnCours())
+                        @if($motifs === [])
+                            <form action="{{ route('emprunts.renouveler', $emprunt) }}" method="POST" class="flex-grow-1">
+                                @csrf
+                                <button class="btn btn-sm btn-warning w-100">
+                                    <i class="fas fa-arrows-rotate me-1"></i> Renouveler
+                                </button>
+                            </form>
+                        @else
+                            <button class="btn btn-sm btn-outline-secondary flex-grow-1" disabled
+                                    title="{{ implode(' ', $motifs) }}">
+                                <i class="fas fa-ban me-1"></i> Non renouvelable
+                            </button>
+                        @endif
+                    @endif
+                </div>
+            </div>
+        </div>
+    @empty
+        <div class="col-12">
+            <div class="card border-0 shadow-sm"><div class="card-body">
+                <x-vide message="Vous n'avez aucun emprunt correspondant." icone="fa-book">
+                    <a href="{{ route('catalogue') }}" class="btn btn-sm btn-warning">Découvrir le catalogue</a>
+                </x-vide>
+            </div></div>
+        </div>
+    @endforelse
+</div>
+
+<div class="mt-3">{{ $emprunts->links() }}</div>
 @endsection

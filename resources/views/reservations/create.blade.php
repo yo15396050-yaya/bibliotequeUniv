@@ -1,193 +1,93 @@
 @extends('layouts.dashboard')
+@section('title', 'Nouvelle réservation')
 
-@section('title', 'Nouvelle Réservation')
-
-@push('styles')
-<style>
-    /* Arrière-plan Papier Crème */
-    .reservation-page {
-        background-color: #F4F7FC;
-        min-height: 100vh;
-        padding-top: 2rem;
-    }
-
-    /* Style de la Carte */
-    .card-custom {
-        border: none;
-        border-radius: 12px;
-        overflow: hidden;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.1);
-    }
-
-    /* En-tête Bois Sombre et Or */
-    .card-custom .card-header {
-        background-color: #123A7A !important; /* Bois Sombre */
-        color: #F4F7FC !important;
-        border-bottom: 3px solid #2563EB !important; /* Bordure Or */
-        padding: 1.5rem;
-    }
-
-    .icon-box-gold {
-        background-color: rgba(37, 99, 235, 0.2);
-        padding: 10px;
-        border-radius: 8px;
-        color: #2563EB;
-    }
-
-    /* Labels et Inputs */
-    .form-label {
-        color: #123A7A;
-        font-weight: 600;
-    }
-
-    .form-control:focus, .form-select:focus {
-        border-color: #2563EB;
-        box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
-    }
-
-    /* Bouton Or (Gold) */
-    .btn-gold {
-        background-color: #2563EB !important;
-        border-color: #2563EB !important;
-        color: #123A7A !important;
-        font-weight: bold;
-        transition: all 0.3s ease;
-    }
-
-    .btn-gold:hover {
-        background-color: #123A7A !important;
-        border-color: #123A7A !important;
-        color: #F4F7FC !important;
-        transform: translateY(-2px);
-    }
-
-    /* Note d'information personnalisée */
-    .info-box-custom {
-        background-color: #fcf8e3;
-        border-left: 5px solid #2563EB;
-        color: #856404;
-    }
-
-    /* Fil d'Ariane (Breadcrumb) */
-    .breadcrumb-item a {
-        color: #123A7A;
-        text-decoration: none;
-    }
-    .breadcrumb-item.active {
-        color: #2563EB;
-    }
-</style>
-@endpush
+@php $personnel = Auth::user()->peut('reservations.gerer'); @endphp
 
 @section('content')
-<div class="reservation-page">
-    <div class="container-fluid">
-        <div class="row justify-content-center">
-            <div class="col-lg-9">
-                
-                <nav aria-label="breadcrumb" class="mb-4">
-                    <ol class="breadcrumb">
-                        <li class="breadcrumb-item"><a href="{{ route('reservations.index') }}">Réservations</a></li>
-                        <li class="breadcrumb-item active">Nouveau formulaire</li>
-                    </ol>
-                </nav>
+<x-entete-page titre="Nouvelle réservation" icone="fa-bookmark"
+    sous-titre="Réserver ne retire pas l'ouvrage du stock : un exemplaire est mis de côté lorsqu'il revient.">
+    <a href="{{ route('reservations.index') }}" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i> Retour
+    </a>
+</x-entete-page>
 
-                <div class="card card-custom">
-                    <div class="card-header">
-                        <div class="d-flex align-items-center">
-                            <div class="icon-box-gold me-3">
-                                <i class="fas fa-calendar-plus fa-lg"></i>
+<x-erreurs />
+
+<div class="row g-3">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <form method="POST" action="{{ route('reservations.store') }}">
+                    @csrf
+
+                    <div class="row g-3">
+                        @if($personnel)
+                            <div class="col-md-6">
+                                <label class="form-label">Usager <span class="text-danger">*</span></label>
+                                <select name="user_id" id="user_id" class="form-select @error('user_id') is-invalid @enderror" required>
+                                    <option value="">— Sélectionner un usager —</option>
+                                    @foreach($etudiants as $etudiant)
+                                        <option value="{{ $etudiant->id }}" @selected(old('user_id') == $etudiant->id)>
+                                            {{ $etudiant->name }} — {{ $etudiant->matricule }}
+                                        </option>
+                                    @endforeach
+                                </select>
+                                @error('user_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
                             </div>
-                            <h5 class="mb-0 fw-bold">Créer une réservation d'ouvrage</h5>
+                        @endif
+
+                        <div class="col-md-6">
+                            <label class="form-label">Ouvrage <span class="text-danger">*</span></label>
+                            <select name="livre_id" id="livre_id" class="form-select @error('livre_id') is-invalid @enderror" required>
+                                <option value="">— Sélectionner un ouvrage —</option>
+                                @foreach($livres as $livre)
+                                    <option value="{{ $livre->id }}" @selected(old('livre_id') == $livre->id)>
+                                        {{ $livre->titre }}
+                                        ({{ $livre->exemplaires_disponibles > 0
+                                            ? $livre->exemplaires_disponibles.' dispo.'
+                                            : 'indisponible' }})
+                                    </option>
+                                @endforeach
+                            </select>
+                            @error('livre_id')<div class="invalid-feedback">{{ $message }}</div>@enderror
+                        </div>
+
+                        <div class="col-12">
+                            <label class="form-label">Note</label>
+                            <textarea name="notes" rows="2" class="form-control"
+                                      placeholder="Ex : ouvrage nécessaire pour un examen.">{{ old('notes') }}</textarea>
                         </div>
                     </div>
-                    
-                    <div class="card-body p-4 bg-white">
-                        <form method="POST" action="{{ route('reservations.store') }}">
-                            @csrf
-                            
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-6">
-                                    <label for="livre_id" class="form-label">Ouvrage à réserver <span class="text-danger">*</span></label>
-                                    <select name="livre_id" id="livre_id" class="form-select @error('livre_id') is-invalid @enderror" required>
-                                        <option value=""></option>
-                                        @foreach($livres as $livre)
-                                            <option value="{{ $livre->id }}" {{ old('livre_id') == $livre->id ? 'selected' : '' }}>
-                                                {{ $livre->titre }} — {{ $livre->auteur }}
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('livre_id')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                    <div class="form-text">Seuls les livres disponibles ou déjà empruntés apparaissent.</div>
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label for="user_id" class="form-label">Bénéficiaire (Étudiant) <span class="text-danger">*</span></label>
-                                    <select name="user_id" id="user_id" class="form-select @error('user_id') is-invalid @enderror" required>
-                                        <option value=""></option>
-                                        @foreach($etudiants as $etudiant)
-                                            <option value="{{ $etudiant->id }}" {{ old('user_id') == $etudiant->id ? 'selected' : '' }}>
-                                                {{ $etudiant->name }} ({{ $etudiant->matricule }})
-                                            </option>
-                                        @endforeach
-                                    </select>
-                                    @error('user_id')
-                                        <div class="invalid-feedback">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                            </div>
-                            
-                            <div class="row g-4 mb-4">
-                                <div class="col-md-6">
-                                    <label for="date_reservation" class="form-label">Début de validité</label>
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-light"><i class="far fa-clock text-brown"></i></span>
-                                        <input type="datetime-local" name="date_reservation" id="date_reservation" 
-                                               class="form-control @error('date_reservation') is-invalid @enderror" 
-                                               value="{{ old('date_reservation', now()->format('Y-m-d\TH:i')) }}" required>
-                                    </div>
-                                    @error('date_reservation')
-                                        <div class="invalid-feedback d-block">{{ $message }}</div>
-                                    @enderror
-                                </div>
-                                
-                                <div class="col-md-6">
-                                    <label for="date_fin_reservation" class="form-label">Date d'expiration <span class="text-danger">*</span></label>
-                                    <div class="input-group">
-                                        <span class="input-group-text bg-light"><i class="fas fa-hourglass-end text-gold"></i></span>
-                                        <input type="datetime-local" name="date_fin_reservation" id="date_fin_reservation" 
-                                               class="form-control @error('date_fin_reservation') is-invalid @enderror" 
-                                               value="{{ old('date_fin_reservation', now()->addDays(7)->format('Y-m-d\TH:i')) }}" required>
-                                    </div>
-                                    <div class="form-text text-danger italic small">Par défaut : 7 jours de réservation.</div>
-                                </div>
-                            </div>
-                            
-                            <div class="mb-4">
-                                <label for="notes" class="form-label">Notes & Observations</label>
-                                <textarea name="notes" id="notes" rows="3" class="form-control" placeholder="Ex: Réservation prioritaire pour examen...">{{ old('notes') }}</textarea>
-                            </div>
-                            
-                            <div class="d-flex justify-content-between align-items-center pt-3 border-top">
-                                <a href="{{ route('reservations.index') }}" class="btn btn-outline-secondary px-4">
-                                    Annuler
-                                </a>
-                                <button type="submit" class="btn btn-gold px-5 shadow-sm">
-                                    <i class="fas fa-check-circle me-2"></i>Confirmer la réservation
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
 
-                <div class="mt-4 info-box-custom p-3 rounded shadow-sm">
-                    <p class="small mb-0">
-                        <i class="fas fa-info-circle me-2"></i>
-                        <strong>Règle académique :</strong> Une réservation empêche l'emprunt de l'ouvrage par un autre étudiant jusqu'à sa date d'expiration.
-                    </p>
-                </div>
+                    <div class="mt-4 d-flex gap-2">
+                        <button class="btn btn-warning"><i class="fas fa-bookmark me-1"></i> Réserver</button>
+                        <a href="{{ route('reservations.index') }}" class="btn btn-outline-secondary">Annuler</a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-transparent border-0 pt-3">
+                <h6 class="mb-0"><i class="fas fa-circle-info me-2" style="color:var(--accent-gold);"></i>Comment ça marche</h6>
+            </div>
+            <div class="card-body small" style="opacity:.85;">
+                <ol class="ps-3 mb-0">
+                    <li class="mb-2">La réservation place l'usager dans une <strong>file d'attente</strong> ordonnée.</li>
+                    <li class="mb-2">Au retour d'un exemplaire, le <strong>premier de la file</strong> est notifié et l'exemplaire est mis de côté.</li>
+                    <li class="mb-2">Il dispose de
+                        <strong>{{ \App\Support\Parametres::entier('reservation.delai_retrait', 2) }} jour(s)</strong>
+                        pour le retirer.</li>
+                    <li>Passé ce délai, la réservation expire et l'usager suivant est prévenu.</li>
+                </ol>
+                <hr>
+                <p class="mb-0">
+                    Maximum
+                    <strong>{{ \App\Support\Parametres::entier('reservation.max_par_usager', 3) }}</strong>
+                    réservation(s) active(s) par usager.
+                </p>
             </div>
         </div>
     </div>
@@ -196,8 +96,7 @@
 
 @push('scripts')
 <script>
-    // Filtrage au clavier sur les listes déroulantes, sans dépendance externe :
-    // on saisit quelques lettres et les options non correspondantes sont masquées.
+    // Filtrage au clavier des listes déroulantes, sans dépendance externe.
     document.querySelectorAll('#livre_id, #user_id').forEach(function (select) {
         const champ = document.createElement('input');
         champ.type = 'search';
