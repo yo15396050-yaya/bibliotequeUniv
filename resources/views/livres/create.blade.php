@@ -4,16 +4,16 @@
 
 @section('content')
     <!-- Conteneur principal avec fond Papier/Crème -->
-    <div class="container-fluid py-4" style="background-color: #FAF3E0; min-height: 100vh;">
+    <div class="container-fluid py-4" style="background-color: #F4F7FC; min-height: 100vh;">
         <div class="row justify-content-center">
             <div class="col-md-10">
                 <div class="card shadow-lg border-0 rounded-3">
 
                     <!-- En-tête : Bois Sombre avec bordure inférieure Or -->
                     <div class="card-header text-white py-3"
-                        style="background-color: #5D4037; border-bottom: 4px solid #D4AF37;">
+                        style="background-color: #123A7A; border-bottom: 4px solid #2563EB;">
                         <h5 class="mb-0 fw-bold">
-                            <i class="fas fa-book-medical me-2" style="color: #D4AF37;"></i>Ajouter un Nouveau Livre
+                            <i class="fas fa-book-medical me-2" style="color: #2563EB;"></i>Ajouter un Nouveau Livre
                         </h5>
                     </div>
 
@@ -243,7 +243,7 @@
                                             <img id="image_preview"
                                                 src="https://via.placeholder.com/200x300/e0e0e0/5D4037?text=Aucun+Visuel"
                                                 alt="Aperçu de la couverture" class="img-thumbnail d-none shadow-sm"
-                                                style="max-width: 150px; max-height: 220px; border-color: #D4AF37;">
+                                                style="max-width: 150px; max-height: 220px; border-color: #2563EB;">
                                         </div>
                                     </div>
                                 </div>
@@ -301,9 +301,9 @@
     <style>
         /* VARIABLES DE COULEUR */
         :root {
-            --bois-sombre: #5D4037;
-            --or: #D4AF37;
-            --papier: #FAF3E0;
+            --bois-sombre: #123A7A;
+            --or: #2563EB;
+            --papier: #F4F7FC;
         }
 
         /* TEXTES */
@@ -324,7 +324,7 @@
         /* CHAMPS DE FORMULAIRE - FOCUS DORÉ */
         .custom-focus:focus {
             border-color: var(--or);
-            box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25);
+            box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
         }
 
         /* BOUTON PRINCIPAL (OR -> BOIS SOMBRE) */
@@ -340,7 +340,7 @@
             background-color: var(--bois-sombre);
             color: #fff;
             transform: translateY(-2px);
-            box-shadow: 0 4px 8px rgba(93, 64, 55, 0.3);
+            box-shadow: 0 4px 8px rgba(18, 58, 122, 0.3);
         }
 
         /* INDICATEURS REQUIS */

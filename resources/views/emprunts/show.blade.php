@@ -5,12 +5,12 @@
 @section('content')
 <style>
     /* Fond de page conforme à la charte */
-    body { background-color: #FAF3E0; }
+    body { background-color: #F4F7FC; }
 
     .detail-card { 
         border-radius: 15px; 
         border: none; 
-        box-shadow: 0 5px 15px rgba(93, 64, 55, 0.1); 
+        box-shadow: 0 5px 15px rgba(18, 58, 122, 0.1); 
     }
 
     .status-banner {
@@ -21,31 +21,31 @@
         align-items: center;
         justify-content: space-between;
         /* Bordure légère couleur Or pour le rappel */
-        border: 1px solid rgba(212, 175, 55, 0.3) !important;
+        border: 1px solid rgba(37, 99, 235, 0.3) !important;
     }
 
     .info-label { 
-        color: #8d6e63; /* Brun clair */
+        color: #64748B; /* Brun clair */
         font-weight: 600; 
         font-size: 0.85rem; 
         text-transform: uppercase; 
     }
 
     .info-value { 
-        color: #5D4037; /* Ton bois sombre */
+        color: #123A7A; /* Ton bois sombre */
         font-weight: 700; 
         font-size: 1.05rem; 
     }
 
     .section-divider { 
-        border-left: 4px solid #D4AF37; /* Ligne Or */
+        border-left: 4px solid #2563EB; /* Ligne Or */
         padding-left: 15px; 
         margin-bottom: 20px; 
-        color: #5D4037;
+        color: #123A7A;
     }
 
-    .text-gold { color: #D4AF37 !important; }
-    .bg-wood { background-color: #5D4037 !important; color: #FAF3E0; }
+    .text-gold { color: #2563EB !important; }
+    .bg-wood { background-color: #123A7A !important; color: #F4F7FC; }
 </style>
 
 <div class="container-fluid py-4">
@@ -117,7 +117,7 @@
 
                             <div class="d-flex justify-content-between mb-3 pb-2 border-bottom">
                                 <span class="text-muted small">Date de sortie :</span>
-                                <span class="fw-bold" style="color: #5D4037;">{{ $emprunt->date_emprunt?->format('d M Y') }}</span>
+                                <span class="fw-bold" style="color: #123A7A;">{{ $emprunt->date_emprunt?->format('d M Y') }}</span>
                             </div>
 
                             <div class="d-flex justify-content-between mb-3 pb-2 border-bottom">

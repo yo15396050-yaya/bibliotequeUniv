@@ -1,7 +1,42 @@
-// Body
-$body-bg: #f8fafc;
+// =============================================================================
+// Identité visuelle BiblioteqUniv — d'après la maquette de l'application
+// Bleu marine profond + bleu roi, sur fond clair.
+// Ces variables alimentent directement Bootstrap : boutons, badges, liens et
+// composants héritent de la charte sans surcharge CSS.
+// =============================================================================
 
-// Typography
-$font-family-sans-serif: 'Nunito', sans-serif;
-$font-size-base: 0.9rem;
+// Palette de marque
+$bleu-nuit:    #0F2557;
+$bleu-marine:  #123A7A;
+$bleu-roi:     #2563EB;
+$bleu-clair:   #E8F0FE;
+$ardoise:      #64748B;
+$encre:        #0F172A;
+$fond:         #F4F7FC;
+
+// Couleurs Bootstrap
+$primary:      $bleu-roi;
+$secondary:    $ardoise;
+$success:      #16A34A;
+$info:         #0EA5E9;
+$warning:      #F59E0B;
+$danger:       #DC2626;
+$light:        $fond;
+$dark:         $bleu-nuit;
+
+$body-bg:      $fond;
+$body-color:   $encre;
+$link-color:   $bleu-roi;
+
+// Typographie
+$font-family-sans-serif: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+$font-size-base: 0.925rem;
 $line-height-base: 1.6;
+$headings-font-weight: 700;
+
+// Formes
+$border-radius:    .65rem;
+$border-radius-sm: .45rem;
+$border-radius-lg: .9rem;
+$card-border-radius: .9rem;
+$btn-font-weight: 500;

@@ -5,20 +5,20 @@
     <title>Fiche d'Activité Étudiant</title>
     <style>
         body { font-family: 'Helvetica', sans-serif; color: #333; margin: 20px; }
-        .header { text-align: center; border-bottom: 2px solid #D4AF37; padding-bottom: 15px; margin-bottom: 30px; }
-        .header h1 { color: #5D4037; font-size: 20px; margin: 0; text-transform: uppercase; }
-        .header p { color: #8d6e63; font-size: 11px; margin-top: 5px; }
+        .header { text-align: center; border-bottom: 2px solid #2563EB; padding-bottom: 15px; margin-bottom: 30px; }
+        .header h1 { color: #123A7A; font-size: 20px; margin: 0; text-transform: uppercase; }
+        .header p { color: #64748B; font-size: 11px; margin-top: 5px; }
         
         .student-info { margin-bottom: 40px; background-color: #fcf8f2; padding: 20px; border-radius: 8px; border: 1px solid #eaddca; }
-        .student-name { font-size: 18px; color: #5D4037; font-weight: bold; margin-bottom: 10px; }
+        .student-name { font-size: 18px; color: #123A7A; font-weight: bold; margin-bottom: 10px; }
         .info-grid { width: 100%; border-collapse: collapse; }
         .info-grid td { padding: 5px; font-size: 11px; }
-        .label { color: #8d6e63; font-weight: bold; text-transform: uppercase; font-size: 9px; }
+        .label { color: #64748B; font-weight: bold; text-transform: uppercase; font-size: 9px; }
         
-        .section-title { font-size: 14px; font-weight: bold; color: #5D4037; border-bottom: 1px solid #D4AF37; margin: 30px 0 15px; padding-bottom: 5px; }
+        .section-title { font-size: 14px; font-weight: bold; color: #123A7A; border-bottom: 1px solid #2563EB; margin: 30px 0 15px; padding-bottom: 5px; }
         
         table.loans { width: 100%; border-collapse: collapse; }
-        table.loans th { background-color: #5D4037; color: #fff; text-align: left; padding: 10px; font-size: 10px; text-transform: uppercase; }
+        table.loans th { background-color: #123A7A; color: #fff; text-align: left; padding: 10px; font-size: 10px; text-transform: uppercase; }
         table.loans td { border-bottom: 1px solid #eee; padding: 10px; font-size: 10px; vertical-align: middle; }
         
         .status-badge { padding: 3px 6px; border-radius: 4px; font-size: 8px; font-weight: bold; text-transform: uppercase; }

@@ -1,8 +1,32 @@
-// Fonts
-@import url('https://fonts.bunny.net/css?family=Nunito');
+// Polices (chargées localement par le navigateur via Google Fonts si dispo,
+// avec repli sur la pile système déclarée dans $font-family-sans-serif).
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
-// Variables
+// Charte de l'application (doit précéder Bootstrap pour surcharger ses variables)
 @import 'variables';
 
-// Bootstrap
+// Bootstrap complet
 @import 'bootstrap/scss/bootstrap';
+
+// Font Awesome (icônes utilisées dans toute l'interface)
+// Font Awesome émet des URL relatives « ../webfonts/… » depuis la feuille
+// compilée (public/build/assets/app.css) : le script npm « copy:webfonts »
+// dépose les polices dans public/build/webfonts après le build.
+@import '@fortawesome/fontawesome-free/scss/fontawesome';
+@import '@fortawesome/fontawesome-free/scss/solid';
+@import '@fortawesome/fontawesome-free/scss/regular';
+@import '@fortawesome/fontawesome-free/scss/brands';
+
+// Ajustements transverses
+.card {
+    border: 1px solid rgba($bleu-nuit, .07);
+}
+
+.table > :not(caption) > * > * {
+    background-color: transparent;
+}
+
+// Le mode sombre est piloté par [data-theme="dark"] dans le layout.
+[data-theme='dark'] {
+    color-scheme: dark;
+}

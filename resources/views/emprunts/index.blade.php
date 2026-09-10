@@ -5,9 +5,9 @@
 @section('content')
 <style>
     :root {
-        --primary-wood: #5D4037;
-        --gold-accent: #D4AF37;
-        --soft-beige: #FAF3E0;
+        --primary-wood: #123A7A;
+        --gold-accent: #2563EB;
+        --soft-beige: #F4F7FC;
     }
 
     .stat-container {

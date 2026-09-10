@@ -10,7 +10,7 @@
                 {{-- Carte de connexion --}}
                 <div class="card shadow-lg border-0 overflow-hidden login-card">
                     {{-- Header Premium --}}
-                    <div class="card-header text-white text-center py-5 border-0 position-relative" style="background-color: #5D4037;">
+                    <div class="card-header text-white text-center py-5 border-0 position-relative" style="background-color: #123A7A;">
                         <div class="header-pattern"></div>
                         <div class="position-relative z-index-2">
                             <div class="mb-3">
@@ -131,11 +131,11 @@
 @push('styles')
 <style>
     :root {
-        --brown: #5D4037;
-        --gold: #D4AF37;
+        --brown: #123A7A;
+        --gold: #2563EB;
         --gold-light: #E0C097;
-        --paper: #FAF3E0;
-        --leather: #8D6E63;
+        --paper: #F4F7FC;
+        --leather: #64748B;
     }
 
     .login-page-container {
@@ -168,10 +168,10 @@
     }
 
     .btn-brown:hover {
-        background-color: #3E2723;
+        background-color: #0F2557;
         color: var(--gold);
         transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(62, 39, 35, 0.3);
+        box-shadow: 0 5px 15px rgba(15, 37, 87, 0.3);
     }
 
     .header-pattern {

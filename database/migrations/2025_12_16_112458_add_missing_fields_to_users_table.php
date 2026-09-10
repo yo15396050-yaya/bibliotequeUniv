@@ -9,28 +9,28 @@ class AddMissingFieldsToUsersTable extends Migration
     public function up()
     {
         Schema::table('users', function (Blueprint $table) {
-            if (!Schema::hasColumn('users', 'role')) {
+            if (! Schema::hasColumn('users', 'role')) {
                 $table->enum('role', ['admin', 'bibliothecaire', 'etudiant'])->default('etudiant');
             }
-            if (!Schema::hasColumn('users', 'matricule')) {
+            if (! Schema::hasColumn('users', 'matricule')) {
                 $table->string('matricule')->unique()->nullable();
             }
-            if (!Schema::hasColumn('users', 'telephone')) {
+            if (! Schema::hasColumn('users', 'telephone')) {
                 $table->string('telephone')->nullable();
             }
-            if (!Schema::hasColumn('users', 'adresse')) {
+            if (! Schema::hasColumn('users', 'adresse')) {
                 $table->string('adresse')->nullable();
             }
-            if (!Schema::hasColumn('users', 'date_naissance')) {
+            if (! Schema::hasColumn('users', 'date_naissance')) {
                 $table->date('date_naissance')->nullable();
             }
-            if (!Schema::hasColumn('users', 'filiere')) {
+            if (! Schema::hasColumn('users', 'filiere')) {
                 $table->string('filiere')->nullable();
             }
-            if (!Schema::hasColumn('users', 'nombre_emprunts')) {
+            if (! Schema::hasColumn('users', 'nombre_emprunts')) {
                 $table->integer('nombre_emprunts')->default(0);
             }
-            if (!Schema::hasColumn('users', 'actif')) {
+            if (! Schema::hasColumn('users', 'actif')) {
                 $table->boolean('actif')->default(true);
             }
         });

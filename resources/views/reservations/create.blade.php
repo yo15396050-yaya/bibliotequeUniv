@@ -6,7 +6,7 @@
 <style>
     /* Arrière-plan Papier Crème */
     .reservation-page {
-        background-color: #FAF3E0;
+        background-color: #F4F7FC;
         min-height: 100vh;
         padding-top: 2rem;
     }
@@ -21,63 +21,62 @@
 
     /* En-tête Bois Sombre et Or */
     .card-custom .card-header {
-        background-color: #5D4037 !important; /* Bois Sombre */
-        color: #FAF3E0 !important;
-        border-bottom: 3px solid #D4AF37 !important; /* Bordure Or */
+        background-color: #123A7A !important; /* Bois Sombre */
+        color: #F4F7FC !important;
+        border-bottom: 3px solid #2563EB !important; /* Bordure Or */
         padding: 1.5rem;
     }
 
     .icon-box-gold {
-        background-color: rgba(212, 175, 55, 0.2);
+        background-color: rgba(37, 99, 235, 0.2);
         padding: 10px;
         border-radius: 8px;
-        color: #D4AF37;
+        color: #2563EB;
     }
 
     /* Labels et Inputs */
     .form-label {
-        color: #5D4037;
+        color: #123A7A;
         font-weight: 600;
     }
 
     .form-control:focus, .form-select:focus {
-        border-color: #D4AF37;
-        box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25);
+        border-color: #2563EB;
+        box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
     }
 
     /* Bouton Or (Gold) */
     .btn-gold {
-        background-color: #D4AF37 !important;
-        border-color: #D4AF37 !important;
-        color: #5D4037 !important;
+        background-color: #2563EB !important;
+        border-color: #2563EB !important;
+        color: #123A7A !important;
         font-weight: bold;
         transition: all 0.3s ease;
     }
 
     .btn-gold:hover {
-        background-color: #5D4037 !important;
-        border-color: #5D4037 !important;
-        color: #FAF3E0 !important;
+        background-color: #123A7A !important;
+        border-color: #123A7A !important;
+        color: #F4F7FC !important;
         transform: translateY(-2px);
     }
 
     /* Note d'information personnalisée */
     .info-box-custom {
         background-color: #fcf8e3;
-        border-left: 5px solid #D4AF37;
+        border-left: 5px solid #2563EB;
         color: #856404;
     }
 
     /* Fil d'Ariane (Breadcrumb) */
     .breadcrumb-item a {
-        color: #5D4037;
+        color: #123A7A;
         text-decoration: none;
     }
     .breadcrumb-item.active {
-        color: #D4AF37;
+        color: #2563EB;
     }
 </style>
-<link href="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/css/tom-select.bootstrap5.css" rel="stylesheet">
 @endpush
 
 @section('content')
@@ -196,11 +195,24 @@
 @endsection
 
 @push('scripts')
-<script src="https://cdn.jsdelivr.net/npm/tom-select@2.2.2/dist/js/tom-select.complete.min.js"></script>
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        new TomSelect('#livre_id', { placeholder: "Chercher un livre...", allowEmptyOption: true });
-        new TomSelect('#user_id', { placeholder: "Chercher un étudiant...", allowEmptyOption: true });
+    // Filtrage au clavier sur les listes déroulantes, sans dépendance externe :
+    // on saisit quelques lettres et les options non correspondantes sont masquées.
+    document.querySelectorAll('#livre_id, #user_id').forEach(function (select) {
+        const champ = document.createElement('input');
+        champ.type = 'search';
+        champ.className = 'form-control form-control-sm mb-2';
+        champ.placeholder = select.id === 'livre_id' ? 'Filtrer les ouvrages…' : 'Filtrer les usagers…';
+        select.parentNode.insertBefore(champ, select);
+
+        const options = Array.from(select.options).map(o => ({ element: o, texte: o.text.toLowerCase() }));
+
+        champ.addEventListener('input', function () {
+            const terme = this.value.trim().toLowerCase();
+            options.forEach(({ element, texte }) => {
+                element.hidden = terme !== '' && element.value !== '' && !texte.includes(terme);
+            });
+        });
     });
 </script>
 @endpush

@@ -2,131 +2,149 @@
 
 namespace App\Http\Controllers;
 
-use App\Models\Etudiant;
+use App\Http\Requests\StoreUserRequest;
+use App\Http\Requests\UpdateUserRequest;
+use App\Models\AnneeAcademique;
 use App\Models\User;
+use App\Services\AuditService;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 
+/**
+ * Gestion des étudiants : vue métier dédiée sur les comptes de rôle
+ * « etudiant ». Les enseignants et le personnel passent par UserController.
+ */
 class EtudiantController extends Controller
 {
-    /**
-     * Affiche la liste des étudiants
-     */
+    public function __construct(private readonly AuditService $audit) {}
+
     public function index(Request $request)
     {
-        $query = User::where('role', 'etudiant');
-        
-        if ($request->has('search') && !empty($request->search)) {
-            $query->where(function($q) use ($request) {
-                $q->where('name', 'like', "%{$request->search}%")
-                  ->orWhere('matricule', 'like', "%{$request->search}%")
-                  ->orWhere('email', 'like', "%{$request->search}%")
-                  ->orWhere('filiere', 'like', "%{$request->search}%");
-            });
-        }
-        
-        $etudiants = $query->orderBy('name')->paginate(15);
-        
+        $this->authorize('viewAny', User::class);
+
+        $etudiants = User::role(User::ROLE_ETUDIANT)
+            ->withCount(['emprunts as emprunts_en_cours_count' => fn ($q) => $q->enCours()])
+            ->recherche($request->input('search'))
+            ->when($request->filled('filiere'), fn ($q) => $q->where('filiere', $request->filiere))
+            ->when($request->filled('niveau'), fn ($q) => $q->where('niveau', $request->niveau))
+            ->when($request->filled('statut'), fn ($q) => $q->where('statut', $request->statut))
+            ->orderBy('name')
+            ->paginate(15)
+            ->withQueryString();
+
+        $donneesVue = [
+            'etudiants' => $etudiants,
+            'filieres' => User::role(User::ROLE_ETUDIANT)->select('filiere')->distinct()
+                ->pluck('filiere')->filter()->sort()->values(),
+            'niveaux' => User::role(User::ROLE_ETUDIANT)->select('niveau')->distinct()
+                ->pluck('niveau')->filter()->sort()->values(),
+            'statuts' => User::STATUTS,
+        ];
+
         if ($request->ajax()) {
-            return view('etudiants.partials._table', compact('etudiants'))->render();
+            return view('etudiants.partials._table', $donneesVue)->render();
         }
-        
-        return view('etudiants.index', compact('etudiants'));
+
+        return view('etudiants.index', $donneesVue);
     }
 
-    /**
-     * Affiche le formulaire de création d'un étudiant
-     */
     public function create()
     {
-        return view('etudiants.create');
+        $this->authorize('create', User::class);
+
+        return view('etudiants.create', [
+            'statuts' => User::STATUTS,
+            'anneesAcademiques' => AnneeAcademique::orderByDesc('date_debut')->get(),
+        ]);
     }
 
-    /**
-     * Stocke un nouvel étudiant
-     */
-    public function store(Request $request)
+    public function store(StoreUserRequest $request)
     {
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email',
-            'matricule' => 'required|string|unique:users,matricule',
-            'telephone' => 'nullable|string|max:20',
-            'adresse' => 'nullable|string|max:255',
-            'date_naissance' => 'nullable|date',
-            'filiere' => 'nullable|string|max:100',
-            'niveau' => 'nullable|string|max:50',
-        ]);
+        $donnees = $request->validated();
+        $donnees['role'] = User::ROLE_ETUDIANT;
 
-        // Créez l'utilisateur avec le rôle étudiant
-        $etudiant = User::create(array_merge($validated, [
-            'role' => 'etudiant',
-            'password' => Hash::make($validated['matricule']), // Mot de passe par défaut = matricule
-            'name' => $validated['prenom'] . ' ' . $validated['nom']
-        ]));
+        if ($request->hasFile('photo')) {
+            $donnees['photo'] = $request->file('photo')->store('etudiants', 'public');
+        }
+
+        $donnees['password'] = $donnees['password'] ?: $donnees['matricule'];
+        $donnees['actif'] = true;
+        $donnees['email_verified_at'] = now();
+
+        $etudiant = User::create($donnees);
+        $this->audit->creation($etudiant, "Étudiant « {$etudiant->name} » enregistré", 'usagers');
 
         return redirect()->route('etudiants.show', $etudiant)
-            ->with('success', 'Étudiant créé avec succès! Le mot de passe par défaut est le matricule: ' . $validated['matricule']);
+            ->with('success', "Étudiant enregistré. Mot de passe provisoire : {$etudiant->matricule}");
     }
 
-    /**
-     * Affiche les détails d'un étudiant
-     */
-    public function show($id)
+    public function show(User $etudiant)
     {
-        $etudiant = User::with(['emprunts.livre' => function($query) {
-            $query->orderBy('created_at', 'desc');
-        }])->findOrFail($id);
-        
-        return view('etudiants.show', compact('etudiant'));
-    }
+        $this->authorize('view', $etudiant);
 
-    /**
-     * Affiche le formulaire d'édition d'un étudiant
-     */
-    public function edit($id)
-    {
-        $etudiant = User::findOrFail($id);
-        return view('etudiants.edit', compact('etudiant'));
-    }
-
-    /**
-     * Met à jour un étudiant
-     */
-    public function update(Request $request, $id)
-    {
-        $etudiant = User::findOrFail($id);
-        
-        $validated = $request->validate([
-            'nom' => 'required|string|max:255',
-            'prenom' => 'required|string|max:255',
-            'email' => 'required|email|unique:users,email,' . $etudiant->id,
-            'matricule' => 'required|string|unique:users,matricule,' . $etudiant->id,
-            'telephone' => 'nullable|string|max:20',
-            'adresse' => 'nullable|string|max:255',
-            'date_naissance' => 'nullable|date',
-            'filiere' => 'nullable|string|max:100',
-            'niveau' => 'nullable|string|max:50',
+        $etudiant->load([
+            'emprunts' => fn ($q) => $q->with('livre:id,titre,auteur')->latest('date_emprunt'),
+            'reservations' => fn ($q) => $q->with('livre:id,titre')->actives(),
+            'penalites' => fn ($q) => $q->latest(),
+            'anneeAcademique',
         ]);
 
-        $etudiant->update(array_merge($validated, [
-            'name' => $validated['prenom'] . ' ' . $validated['nom']
-        ]));
-
-        return redirect()->route('etudiants.show', $etudiant)
-            ->with('success', 'Étudiant mis à jour avec succès!');
+        return view('etudiants.show', [
+            'etudiant' => $etudiant,
+            'statistiques' => [
+                'emprunts_total' => $etudiant->emprunts->count(),
+                'emprunts_en_cours' => $etudiant->emprunts->whereIn('statut', ['en cours', 'en retard'])->count(),
+                'emprunts_en_retard' => $etudiant->emprunts->where('statut', 'en retard')->count(),
+                'dette' => (float) $etudiant->penalitesBloquantes()->sum('montant')
+                    - (float) $etudiant->penalitesBloquantes()->sum('montant_paye'),
+            ],
+            'motifsBlocage' => $etudiant->motifsBlocageEmprunt(),
+        ]);
     }
 
-    /**
-     * Supprime un étudiant
-     */
-    public function destroy($id)
+    public function edit(User $etudiant)
     {
-        $etudiant = User::findOrFail($id);
+        $this->authorize('update', $etudiant);
+
+        return view('etudiants.edit', [
+            'etudiant' => $etudiant,
+            'statuts' => User::STATUTS,
+            'anneesAcademiques' => AnneeAcademique::orderByDesc('date_debut')->get(),
+        ]);
+    }
+
+    public function update(UpdateUserRequest $request, User $etudiant)
+    {
+        $donnees = $request->validated();
+
+        if ($request->hasFile('photo')) {
+            if ($etudiant->photo) {
+                Storage::disk('public')->delete($etudiant->photo);
+            }
+            $donnees['photo'] = $request->file('photo')->store('etudiants', 'public');
+        }
+
+        if (empty($donnees['password'])) {
+            unset($donnees['password']);
+        }
+
+        $etudiant->update($donnees);
+        $this->audit->modification($etudiant, "Étudiant « {$etudiant->name} » modifié", 'usagers');
+
+        return redirect()->route('etudiants.show', $etudiant)->with('success', 'Étudiant mis à jour.');
+    }
+
+    public function destroy(User $etudiant)
+    {
+        $this->authorize('delete', $etudiant);
+
+        if ($etudiant->emprunts()->enCours()->exists()) {
+            return back()->with('error', 'Impossible de supprimer cet étudiant : des emprunts sont en cours.');
+        }
+
+        $this->audit->suppression($etudiant, "Étudiant « {$etudiant->name} » supprimé", 'usagers');
         $etudiant->delete();
 
-        return redirect()->route('etudiants.index')
-            ->with('success', 'Étudiant supprimé avec succès!');
+        return redirect()->route('etudiants.index')->with('success', 'Étudiant supprimé.');
     }
 }

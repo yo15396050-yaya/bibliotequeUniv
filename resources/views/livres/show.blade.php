@@ -6,7 +6,7 @@
     <style>
         /* Thème Global */
         .detail-wrapper {
-            background-color: #FAF3E0;
+            background-color: #F4F7FC;
             min-height: 100vh;
             padding: 2rem 0;
         }
@@ -19,41 +19,41 @@
         }
 
         .main-header {
-            background-color: #5D4037 !important;
-            color: #D4AF37 !important;
-            border-bottom: 3px solid #D4AF37;
+            background-color: #123A7A !important;
+            color: #2563EB !important;
+            border-bottom: 3px solid #2563EB;
         }
 
         .section-header {
             background-color: #f8f1e0 !important;
-            color: #5D4037;
+            color: #123A7A;
             font-weight: bold;
-            border-bottom: 1px solid #e0d5ba;
+            border-bottom: 1px solid #E2E8F0;
         }
 
         /* Typographie */
         .text-wood {
-            color: #5D4037;
+            color: #123A7A;
         }
 
         .text-gold {
-            color: #D4AF37;
+            color: #2563EB;
         }
 
         /* Badges & Progress */
         .bg-gold {
-            background-color: #D4AF37;
-            color: #5D4037;
+            background-color: #2563EB;
+            color: #123A7A;
         }
 
         .progress {
-            background-color: #e0d5ba;
+            background-color: #E2E8F0;
             height: 12px !important;
             border-radius: 10px;
         }
 
         .progress-bar {
-            background-color: #5D4037;
+            background-color: #123A7A;
             border-radius: 10px;
         }
 
@@ -70,20 +70,20 @@
 
         /* Buttons */
         .btn-gold {
-            background-color: #D4AF37;
-            color: #5D4037;
+            background-color: #2563EB;
+            color: #123A7A;
             border: none;
             font-weight: 600;
         }
 
         .btn-gold:hover {
-            background-color: #5D4037;
-            color: #FAF3E0;
+            background-color: #123A7A;
+            color: #F4F7FC;
         }
 
         /* Suggestions */
         .suggestion-card {
-            border: 1px solid #e0d5ba;
+            border: 1px solid #E2E8F0;
             border-radius: 8px;
             overflow: hidden;
             transition: transform 0.3s;
@@ -92,7 +92,7 @@
 
         .suggestion-card:hover {
             transform: translateY(-5px);
-            box-shadow: 0 5px 15px rgba(93, 64, 55, 0.1);
+            box-shadow: 0 5px 15px rgba(18, 58, 122, 0.1);
         }
 
         .suggestion-img {
@@ -135,7 +135,7 @@
                                                 alt="{{ $livre->titre }}" class="img-fluid rounded book-cover-detail">
                                         @else
                                             <div class="bg-light d-flex align-items-center justify-content-center rounded"
-                                                style="height: 350px; border: 2px dashed #D4AF37;">
+                                                style="height: 350px; border: 2px dashed #2563EB;">
                                                 <div class="text-muted"><i class="fas fa-image fa-3x mb-2"></i><br>Aucune
                                                     couverture</div>
                                             </div>

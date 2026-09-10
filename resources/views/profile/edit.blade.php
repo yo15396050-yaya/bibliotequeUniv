@@ -6,7 +6,7 @@
 <style>
     /* Arrière-plan principal */
     .profile-container {
-        background-color: #FAF3E0;
+        background-color: #F4F7FC;
         padding: 2rem 0;
         min-height: 100vh;
     }
@@ -18,15 +18,15 @@
     }
 
     .card-custom .card-header {
-        background-color: #5D4037 !important; /* Bois Sombre */
-        color: #FAF3E0 !important;
-        border-bottom: 3px solid #D4AF37 !important; /* Bordure Or */
+        background-color: #123A7A !important; /* Bois Sombre */
+        color: #F4F7FC !important;
+        border-bottom: 3px solid #2563EB !important; /* Bordure Or */
     }
 
     /* Titres de sections */
     .section-title {
-        color: #5D4037;
-        border-bottom: 2px solid #D4AF37 !important;
+        color: #123A7A;
+        border-bottom: 2px solid #2563EB !important;
         font-weight: bold;
         text-transform: uppercase;
         font-size: 0.9rem;
@@ -35,29 +35,29 @@
 
     /* Champs de formulaire */
     .form-control:focus {
-        border-color: #D4AF37 !important; /* Focus Or */
-        box-shadow: 0 0 0 0.25rem rgba(212, 175, 55, 0.25);
+        border-color: #2563EB !important; /* Focus Or */
+        box-shadow: 0 0 0 0.25rem rgba(37, 99, 235, 0.25);
     }
 
     /* Bouton d'enregistrement */
     .btn-gold {
-        background-color: #D4AF37 !important;
-        border-color: #D4AF37 !important;
-        color: #5D4037 !important;
+        background-color: #2563EB !important;
+        border-color: #2563EB !important;
+        color: #123A7A !important;
         font-weight: bold;
         transition: all 0.3s ease;
     }
 
     .btn-gold:hover {
-        background-color: #5D4037 !important; /* Bois Sombre au survol */
-        border-color: #5D4037 !important;
-        color: #FAF3E0 !important;
+        background-color: #123A7A !important; /* Bois Sombre au survol */
+        border-color: #123A7A !important;
+        color: #F4F7FC !important;
     }
 
     /* Alertes et badges */
     .alert-info-custom {
         background-color: #fcf8e3;
-        border-left: 4px solid #D4AF37;
+        border-left: 4px solid #2563EB;
         color: #856404;
     }
 </style>
